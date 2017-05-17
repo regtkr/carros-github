@@ -5,8 +5,6 @@ rm(list = ls())
 library(haven) # Biblioteca para o STATA
 library(dplyr) 
 library(ggplot2)
-# library(zoo)
-# library(reshape2)
 
 
 # Dados
@@ -14,6 +12,7 @@ library(ggplot2)
 ## Lendo a base de carros
 amostra  = read.csv("SmallData.csv", fileEncoding="iso-8859-1")
 amostra_s = amostra
+
 ## Removendo dados estranhos
 amostra = subset(amostra, cidadeprincipal != "AAAAA")
 outro   = grep("OTHERS", amostra$cidadeprincipal)
@@ -47,31 +46,12 @@ merc_ano = merc_pot %>%
 amostra =  amostra %>%
   left_join(merc_ano, by = "ano")
 
-## Visualisando as características
-#str(amostra)
-
-## Criando Marketshare
-### Somando mercado potencial para todo o pais por ano
-# amostra = amostra %>%
-#   group_by(ano) %>%
-#   summarise(M = sum(mkt_pop_)) %>%
-#   left_join(amostra, by = "ano")
-
-# M = summarise(group_by(amostra, ano), vendas = sum(vendas_ano))
-# amostra = mutate(group_by(amostra, ano), vendas_totais = sum(vendas_ano))
-# amostra = mutate(amostra, share = vendas_ano/vendas_totais)
-# amostra = select(amostra, -vendas_totais)
-
 ### Calculando a participação
 amostra = amostra %>%
-  # group_by(ano) %>%
-  # mutate(vendas_totais = sum(vendas_ano)) %>%
-  # mutate(share = vendas_ano / vendas_totais) %>%
   mutate(share = vendas_ano / M) %>%
   group_by(ano) %>%
   mutate(out = 1 - sum(share),
          ln_sj0 = log(share/out))
-  # select(-vendas_totais)
 
 ## Criando classes de veículos
 
