@@ -1,4 +1,5 @@
 # carros-github
 
 ## Pasta "Preliminar" 
-Contem a estimativa e simulação de acordo com o paper grego
+* Estimativa e simulação de acordo com o paper grego;
+* Grafico das unidades vendidas mensalmente;
