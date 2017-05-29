@@ -4,13 +4,15 @@ rm(list = ls())
 # Abrindo as bibliotecas necessárias
 library(haven) # Biblioteca para o STATA
 library(dplyr) 
-library(ggplot2)
+# library(ggplot2)
 
+# Acertando diretorio
+setwd("/media/regis/DATA/Dropbox/Mestrado/Dissertacao/carros-github")
 
 # Dados
 
 ## Lendo a base de carros
-amostra  = read.csv("SmallData.csv", fileEncoding="iso-8859-1")
+amostra  = read.csv("/media/regis/DATA/Dropbox/Mestrado/Amostra/SmallData.csv", fileEncoding="iso-8859-1")
 amostra_s = amostra
 
 ## Removendo dados estranhos
@@ -27,7 +29,7 @@ amostra = amostra %>%
 colnames(amostra) = c("ano", "A", "jato", "combustivel", "marca", "dese_a", "dese_v", "pote_t", "moto_cc", "diex_c", "pote_c", "prec", "vendas_ano")
 
 ## Lendo a base de mercado potencial
-merc_pot = read_dta("Pot_mkt_3.dta")
+merc_pot = read_dta("./Dados/Pot_mkt_3.dta")
 ## Mantendo apenas o ano a cidade e o mercado potencial
 merc_pot = select(merc_pot, ano, cidadeprincipal, mkt_pop_)
 merc_pot$ano = as.integer(merc_pot$ano)
@@ -35,7 +37,7 @@ merc_pot$cidadeprincipal = as.factor(merc_pot$cidadeprincipal)
 merc_pot$mkt_pop_ = as.integer(merc_pot$mkt_pop_ )
 ## Removendo dados estranhos
 merc_pot = subset(merc_pot, cidadeprincipal != "AAAAA")
-outro   = grep("OTHERS", merc_pot$cidadeprincipal)
+outro    = grep("OTHERS", merc_pot$cidadeprincipal)
 merc_pot = merc_pot[-outro, ]
 ## Somando para o pais e por ano
 merc_ano = merc_pot %>%
@@ -69,8 +71,8 @@ amostra = amostra %>%
          s_share1 = share / share1)
 
 ## Deflacionando o preco
-ipca_br  = read_dta("IPCA_BR.dta")
-ipca_est = read_dta("IPCA_EST.dta")
+ipca_br  = read_dta("./Dados/IPCA_BR.dta")
+ipca_est = read_dta("./Dados/IPCA_EST.dta")
 
 ipca_br$ano = as.integer(ipca_br$ano)
 ipca_br$defl_BR = as.double(ipca_br$defl_BR)
@@ -87,12 +89,12 @@ amostra = amostra %>%
 amostra = amostra %>%
   group_by(ano, combustivel, jato) %>%
   summarise(temp1 = sum(vendas_ano)) %>%
-  left_join(amostra, by = c("ano", "combustivel", "jato"))
+  right_join(amostra, by = c("ano", "combustivel", "jato"))
 
 amostra = amostra %>%
   group_by(ano, combustivel, jato, marca) %>%
   summarise(temp2 = sum(vendas_ano)) %>%
-  left_join(amostra, by = c("ano", "combustivel", "jato","marca"))
+  right_join(amostra, by = c("ano", "combustivel", "jato","marca"))
 
 amostra = amostra %>%
   mutate(firmas.n  = temp1 - temp2,
@@ -100,25 +102,40 @@ amostra = amostra %>%
   select(-temp1, -temp2)
 
 ## Desempenho
+# Com o dplyr 0.6.0
+# "%+%" = function(x,y) {
+#   return(paste(x , y, sep=""))
+# }
+# 
+# caract.list = c("dese_a", "dese_v", "pote_t", "moto_cc", "diex_c", "pote_t")
+# for (caract in caract.list) {
+#   teste = amostra %>%
+#     group_by(ano, marca) %>% mutate_(ownsum = 'sum(' %+% caract %+% ')') %>%
+#     mutate_('ownsum - ' %+% caract ) %>% rename_(caract = 'ownsum - ' %+% caract )
+#     group_by(ano) %>% mutate(totsum = sum(get(caract))) %>%
+#     mutate(!! "BLP3_" %+% caract := totsum - ownsum) %>%
+#     select(-ownsum, -totsum)
+# }
+
 amostra = amostra %>%
   group_by(ano, combustivel, jato) %>%
-  summarise(temp.a1 = min(dese_a, na.rm = T),    # Aceleração de 0 a 100
-            temp.s1 = max(dese_v, na.rm = T),    # Velocidade
-            temp.t1 = max(pote_t, na.rm = T),    # Torque
-            temp.c1 = max(moto_cc, na.rm = T),   # CC
-            temp.l1 = max(diex_c, na.rm = T),    # Comprimento
-            temp.h1 = max(pote_c, na.rm = T)) %>% # HP
+  summarise(temp.a1 = sum(dese_a, na.rm = T),    # Aceleração de 0 a 100
+            temp.s1 = sum(dese_v, na.rm = T),    # Velocidade
+            temp.t1 = sum(pote_t, na.rm = T),    # Torque
+            temp.c1 = sum(moto_cc, na.rm = T),   # CC
+            temp.l1 = sum(diex_c, na.rm = T),    # Comprimento
+            temp.h1 = sum(pote_c, na.rm = T)) %>% # HP
             #temp.co1 = max(emis_c)) %>% # CO2
   left_join(amostra, by = c("ano", "combustivel", "jato"))
 
 amostra = amostra %>%
   group_by(ano, combustivel, jato, marca) %>%
-  summarise(temp.a2 = min(dese_a, na.rm = T),    # Aceleração de 0 a 100
-            temp.s2 = max(dese_v, na.rm = T),    # Velocidade
-            temp.t2 = max(pote_t, na.rm = T),    # Torque
-            temp.c2 = max(moto_cc, na.rm = T),   # CC
-            temp.l2 = max(diex_c, na.rm = T),    # Comprimento
-            temp.h2 = max(pote_c, na.rm = T)) %>% # HP
+  summarise(temp.a2 = sum(dese_a, na.rm = T),    # Aceleração de 0 a 100
+            temp.s2 = sum(dese_v, na.rm = T),    # Velocidade
+            temp.t2 = sum(pote_t, na.rm = T),    # Torque
+            temp.c2 = sum(moto_cc, na.rm = T),   # CC
+            temp.l2 = sum(diex_c, na.rm = T),    # Comprimento
+            temp.h2 = sum(pote_c, na.rm = T)) %>% # HP
   left_join(amostra, by = c("ano", "combustivel", "jato","marca"))
 
 amostra = amostra %>%
@@ -146,11 +163,14 @@ amostra = subset(amostra, ln_sj0 != -Inf)
 
 # Estimação
 library(AER)
+library(plm)
 
 ## OLS
+# Apenas preço
 reg0 = lm(ln_sj0 ~ preco_defl, data = amostra)
 summary(reg0)
 
+# Com algumas caracteristicas
 reg1 = lm(ln_sj0 ~ preco_defl + ln_s_share2 + ln_s2s1 
            + dese_a 
            + dese_v
@@ -160,6 +180,7 @@ reg1 = lm(ln_sj0 ~ preco_defl + ln_s_share2 + ln_s2s1
           , data = amostra)
 summary(reg1)
 
+# Em painel
 painel1 = plm(ln_sj0 ~ preco_defl + ln_s_share2 + ln_s2s1 
           + dese_a 
           + dese_v
@@ -181,10 +202,10 @@ ivreg1 = ivreg(ln_sj0 ~ preco_defl
                data = amostra)
 summary(ivreg1, diagnostics = T)
 
-piv1 = plm(ln_sj0 ~ log(preco_defl)
+piv1 = plm(ln_sj0 ~ preco_defl
                + ln_s_share2 + ln_s2s1
                + dese_a + dese_v + pote_t + moto_cc + diex_c + pote_c
-               | ln_s_share2 + ln_s2s1 +
+               | #ln_s_share2 + ln_s2s1 +
              dese_a + dese_v + pote_t + moto_cc + diex_c + pote_c
                # Instrumentos
                + firmas.n + firmas.acc + firmas.speed + firmas.torque + firmas.cc + firmas.compr + firmas.cv,
@@ -193,14 +214,6 @@ summary(piv1, diagnostics = T)
 
 t.test(amostra$ln_s_share2, amostra$ln_s2s1)
 
-iv1 = lm(preco_defl ~ firmas.n + firmas.acc + firmas.speed+ dese_v
-         #+ firmas.torque 
-         + firmas.cc 
-         #+ firmas.compr + firmas.cv
-         ,
-         data = amostra)
-summary(iv1, diagnostics = T)
-preco_hat = predict(iv1)
 
 # Markup
 sigma1 =  ivreg1$coefficients[["ln_s_share2"]]
@@ -221,9 +234,9 @@ amostra %>%
             median(crossoutgroup))
 
 amostra = amostra %>%
-  group_by(marca, combustivel, jato, marca) %>%
+  group_by(marca, combustivel, jato, ano) %>%
   mutate(sm = sum(share)) %>%
-  left_join(amostra, by = c("marca", "combustivel", "jato", "marca")) %>%
+  #left_join(amostra, by = c("marca", "combustivel", "jato", "ano")) %>%
   mutate(sjggm = sm / share1,
          sjg2m = sm / share2)
 
@@ -234,9 +247,10 @@ amostra %>%
   group_by(combustivel, jato) %>% 
   summarise(median(markups))
 
-# amostra = amostra %>% 
-#   mutate(mc = (price - markups) / (1 + vatrate))
+vatrate = .18
+amostra = amostra %>% 
+  mutate(mc = (preco_defl - markups) / (1 + vatrate))
 
-# xi: reg mc eng_cc  co2_level  hp lengXwid   dum_manual dum_climate    yr* cn*
+reg1 = lm(mc ~ moto_cc + pote_c + diex_c, data = amostra)
+summary(reg1)
 #   encode make, gen(makenum)
-
