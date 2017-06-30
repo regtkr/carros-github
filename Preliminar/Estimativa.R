@@ -7,12 +7,12 @@ library(dplyr)
 # library(ggplot2)
 
 # Acertando diretorio
-setwd("/media/regis/DATA/Dropbox/Mestrado/Dissertacao/carros-github")
+setwd("~/Dropbox/Mestrado/Dissertacao/carros-github")
 
 # Dados
 
 ## Lendo a base de carros
-amostra  = read.csv("/media/regis/DATA/Dropbox/Mestrado/Amostra/SmallData.csv", fileEncoding="iso-8859-1")
+amostra  = read.csv("~/Dropbox/Mestrado/Amostra/SmallData.csv", fileEncoding="iso-8859-1")
 amostra_s = amostra
 
 ## Removendo dados estranhos
