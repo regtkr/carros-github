@@ -10,6 +10,7 @@ Cria variáveis instrumentais
 *                             ABRINDO A BASE DE DADOS
 * ______________________________________________________________________________
 
+clear
 cd "/mnt/84DC97E6DC97D0B2/carros"
 use "BIG_File_with_fuel.dta", clear
 
@@ -291,7 +292,8 @@ replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
 * ______________________________________________________________________________
 
 local outras ///
-    cidadeprincipal prec ano marca carroceria brasil mercosul acordo importado
+    ano regiao subregiao cidadeprincipal prec vendas_ano marca carroceria ///
+	brasil mercosul acordo importado
 
 keep `instr' `outras'
 
@@ -304,15 +306,26 @@ keep `instr' `outras'
 
 * ______________________________________________________________________________
 *
-* UNINDO A BASE DE MERCADO POTENCIAL
+* 					UNINDO A BASE DE MERCADO POTENCIAL
 * ______________________________________________________________________________
+merge m:1 ano regiao subregiao cidade using "Pot_mkt.dta"
 
+drop if _merge != 3
+drop _merge
 
 * ______________________________________________________________________________
 *
-* CONSTRUINDO MERCADO POTECIAL
+* 	CONSTRUINDO MERCADO POTECIAL E CALCULANDO A PARTICIPAÇÃO NOS MERCADOS
 * ______________________________________________________________________________
 
+* Construindo variável de share do bem j e do bem externo
+bysort ano cidadeprincipal: egen vendas_total = sum(vendas_ano)
+gen share_geral = vendas_ano / mkt_pop_
+bysort ano cidadeprincipal: egen share_insidegood = total(share_geral)
+gen share_outsidegood = 1 - share_insidegood
+gen share_geral_ln = ln(share_geral)
+gen share_outsidegood_ln = ln(share_outsidegood)
+gen dif_share = ln(share_geral) - ln(share_outsidegood)
 
 * ______________________________________________________________________________
 *
@@ -322,7 +335,7 @@ keep `instr' `outras'
 
 * ______________________________________________________________________________
 *
-* CRIANDO GRUPOS
+*                                   CRIANDO GRUPOS
 * ______________________________________________________________________________
 
 *-------------------------------------------------------------------------------
@@ -336,7 +349,9 @@ egen ano_cidade = group(ano cidadeprincipal), label
 *                         CRIANDO VARIÁVEIS INSTRUMENTAIS
 * ______________________________________________________________________________
 
-
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BLP
+*-------------------------------------------------------------------------------
 sort ano_cidade marca
 foreach variable of local instr {
     bysort ano_cidade marca: egen ownsum = total(`variable')
@@ -349,33 +364,40 @@ foreach variable of local instr {
     drop totsum
 }
 
-
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BST
+*-------------------------------------------------------------------------------
 sort ano_cidade marca carroceria
 foreach variable of local instr {
     bysort ano_cidade marca carroceria: egen ownsum = total(`variable')
-    * Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do mercado no mesmo segmento.
-    * Soma das características dos outros produtos produzidos pela mesma firma localizados no mesmo segmento.
+    /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
+	mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma
+	localizados no mesmo segmento. */
     qui gen BLP5_1_`variable' = ownsum - `variable'   
     bysort ano_cidade carroceria: egen totsum = total(`variable')
-    * Instrumento BST (5.2) para produtos produzidos por outras firmas fora do mercado no mesmo segmento.
-    * Soma das características dos outros produtos produzidos por outras firmas localizados no mesmo segmento.
+    /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
+	mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas
+	localizados no mesmo segmento. */ 
     qui gen BLP5_2_`variable' = totsum - ownsum  
     drop ownsum
     drop totsum
 }
 
-
-* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como proxy da substitubilidade dos produtos.
-*-------------------------------------------------------------------------------------------------------------------
+*-------------------------------------------------------------------------------
+* PROXY DA SUBSTITUTIBILIDADE
+*-------------------------------------------------------------------------------
+/* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como 
+proxy da substitubilidade dos produtos. */
 bysort ano_cidade marca carroceria: egen BST_1 = count(prec)
 
-* Número de modelos em um dado grupo do mercado como proxy da substitubilidade dos produtos.
-*-------------------------------------------------------------------------------------------------------------------
+/* Número de modelos em um dado grupo do mercado como proxy da substitubilidade
+ dos produtos. */
 bysort ano_cidade marca: egen BST_1_1 = count(prec)
 
 * Número de empresas pertencentes em um mesmo grupo como proxy do grau de concorrência.
 *----------------------------------------------------------------------------------------
-
 
 
 * ______________________________________________________________________________
