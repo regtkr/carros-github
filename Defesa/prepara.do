@@ -5,6 +5,10 @@ Trata os dados para que a estimação;
 Cria variáveis instrumentais
 */
 
+* ______________________________________________________________________________
+*
+*                             ABRINDO A BASE DE DADOS
+* ______________________________________________________________________________
 
 cd "/mnt/84DC97E6DC97D0B2/carros"
 use "BIG_File_with_fuel.dta", clear
@@ -12,7 +16,7 @@ use "BIG_File_with_fuel.dta", clear
 
 * ______________________________________________________________________________
 *
-* 							FORMATANDO OS DADOS
+* 							    FORMATANDO OS DADOS
 * ______________________________________________________________________________
 
 *-------------------------------------------------------------------------------
@@ -36,11 +40,19 @@ replace prec = prec / 100
 * duplicates drop marca modelo ano litros transmiss carroceria, force
 
 *-------------------------------------------------------------------------------
+* LISTA DE VARIÁVEIS A INSTRUMENTALIZAR
+*-------------------------------------------------------------------------------
+* Criando uma lista de variáveis para instrumentos a partir desta usando Berry
+local instr 
+
+*-------------------------------------------------------------------------------
 * TRANSMISSÃO
 *-------------------------------------------------------------------------------
 generate transmissao = .
 replace  transmissao = 1 if transmiss == "automática"
 replace  transmissao = 0 if transmiss == "manual"
+
+local instr `instr' transmissao 
 
 *-------------------------------------------------------------------------------
 * TRAÇÃO
@@ -48,11 +60,15 @@ replace  transmissao = 0 if transmiss == "manual"
 generate tracao = 0
 replace  tracao = 1 if trca == "4x4"
 
+local instr `instr' tracao
+
 *-------------------------------------------------------------------------------
 * PILOTO AUTOMÁTICO
 *-------------------------------------------------------------------------------
 generate pilotoauto = 0
 replace  pilotoauto = 1 if pilo == "std"
+
+local instr `instr' pilotoauto
 
 *-------------------------------------------------------------------------------
 * AR CONDICIONADO
@@ -60,11 +76,15 @@ replace  pilotoauto = 1 if pilo == "std"
 generate arcondicianado = 0
 replace arcondicianado = 1 if arco == "std"
 
+local instr `instr' arcondicianado
+
 *-------------------------------------------------------------------------------
 * MATERIAL DA RODA
 *-------------------------------------------------------------------------------
 generate rodaleve = 0
 replace  rodaleve = 1 if roda_m == "liga leve"
+
+local instr `instr' rodaleve
 
 *-------------------------------------------------------------------------------
 * SOM
@@ -72,11 +92,15 @@ replace  rodaleve = 1 if roda_m == "liga leve"
 generate SOM = 0
 replace  SOM= 1 if som == "std"
 
+local instr `instr' SOM
+
 *-------------------------------------------------------------------------------
 * DVD
 *-------------------------------------------------------------------------------
 generate DVD = 0
 replace  DVD = 1  if dvd == "std"
+
+local instr `instr' DVD
 
 *-------------------------------------------------------------------------------
 * VIDROS ELÉRICOS
@@ -84,11 +108,15 @@ replace  DVD = 1  if dvd == "std"
 generate vidros = 0
 replace  vidros = 1 if viel == "std"
 
+local instr `instr' vidros
+
 *-------------------------------------------------------------------------------
 * COMPUTADOR DE BORDO
 *-------------------------------------------------------------------------------
 generate computer = 0
 replace  computer = 1 if copt == "std"
+
+local instr `instr' computer
 
 *-------------------------------------------------------------------------------
 * DIREÇÃO CHIC
@@ -97,11 +125,15 @@ generate direcao = 0
 replace  direcao = 1 ///
 	if dira_t == "hidráulica" | dira_t=="elérica" | dira_t=="eletro-hidrául."
 
+local instr `instr' direcao
+
 *-------------------------------------------------------------------------------
 * TRAVAMENTO CENTRAL
 *-------------------------------------------------------------------------------
 generate travcentral = 0
 replace  travcentral = 1 if trav == "std"
+
+local instr `instr' travcentral
 
 *-------------------------------------------------------------------------------
 * ALARME
@@ -109,12 +141,16 @@ replace  travcentral = 1 if trav == "std"
 generate alarme = 0
 replace  alarme = 1 if alam == "std"
 
+local instr `instr' alarme
+
 *-------------------------------------------------------------------------------
 * AIRBAG
 *-------------------------------------------------------------------------------
 generate airbag = 0
 replace airbag = 1 if aird == "std"
 replace airbag = 0 if aird != "std" & aird!=""
+
+local instr `instr' airbag
 
 *-------------------------------------------------------------------------------
 * FREIOS
@@ -125,16 +161,23 @@ replace  ABS1 = 1 if abs == "std"
 generate EBD1 = 0
 replace  EBD1 = 1 if ebd == "std"
 
+local instr `instr' ABS1
+local instr `instr' EBD1
+
 *-------------------------------------------------------------------------------
 * ACABAMENTO DE LUXO
 *-------------------------------------------------------------------------------
 generate acabamento_luxo = 0
 replace  acabamento_luxo = 1 if aclu == "std"
 
+local instr `instr' acabamento_luxo
+
 *-------------------------------------------------------------------------------
 * GARANTIA
 *-------------------------------------------------------------------------------
 rename gato_d garantia
+
+local instr `instr' garantia
 
 *-------------------------------------------------------------------------------
 * POTÊCIA DO MOTOR
@@ -144,6 +187,8 @@ generate potencia_categorica = irecode(pote_c, 100, 200, 300, 400, 500, 750)
 generate potencia_ln = ln(pote_c)
 rename pote_c potencia
 rename moto_cc cilindradas
+
+local instr `instr' potencia potencia_ln
 
 *-------------------------------------------------------------------------------
 * ESPAÇO INTERNO
@@ -161,11 +206,17 @@ generate volume_externo_ln = ln(volume_externo)
 generate espaco_interno    = diex_l * diex_e
 generate espaco_interno_ln = ln(espaco_interno)
 
+local instr `instr' area_frontal area_superior volume_externo ///
+	area_frontal_ln area_superior_ln volume_externo_ln ///
+	espaco_interno espaco_interno_ln
+
 *-------------------------------------------------------------------------------
 * CONSUMO
 *-------------------------------------------------------------------------------
 generate consumo_ln = ln(cons_c)
 rename   cons_c consumo
+
+local instr `instr' consumo consumo_ln
 
 *-------------------------------------------------------------------------------
 * PESO
@@ -180,16 +231,22 @@ generate peso_bruto_ln = ln(peso_b)
 rename   peso_b peso_bruto
 rename   carg_v carga_carro
 
+local instr `instr' carga_paga_max carga_ln peso_bruto peso_bruto_ln carga_carro
+
 *-------------------------------------------------------------------------------
 * VELOCIADADE MÁXIMA
 *-------------------------------------------------------------------------------
 generate veloc_max_ln = ln(dese_v)
 rename   dese_v veloc_max
 
+local instr `instr' veloc_max
+
 *-------------------------------------------------------------------------------
 * ACELERAÇÃO DE 0 A 100
 *-------------------------------------------------------------------------------
 rename dese_a aceleracao
+
+local instr `instr' aceleracao
 
 *-------------------------------------------------------------------------------
 * CILINDRADAS
@@ -230,6 +287,17 @@ replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
 
 * ______________________________________________________________________________
 *
+*                        REMOVENDO VARIÁVEIS NÃO UTILIZADAS 
+* ______________________________________________________________________________
+
+local outras ///
+    cidadeprincipal prec ano marca carroceria brasil mercosul acordo importado
+
+keep `instr' `outras'
+
+
+* ______________________________________________________________________________
+*
 * BASE DE VOLUME ORIGINAL
 * ______________________________________________________________________________
 
@@ -260,28 +328,60 @@ replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
 *-------------------------------------------------------------------------------
 * CIDADE E ANO
 *-------------------------------------------------------------------------------
-egen ano_cidade = group(ano cidade),label
+egen ano_cidade = group(ano cidadeprincipal), label
+
 
 * ______________________________________________________________________________
 *
-* 					CRIANDO AS VARIÁVEIS INSTRUMENTAIS
+*                         CRIANDO VARIÁVEIS INSTRUMENTAIS
 * ______________________________________________________________________________
 
 
 sort ano_cidade marca
-foreach var of varlist transmissao tracao pilotoauto garantia lngarantia cilindradas lncilindradas som2 computer vidroselé EBD1 Aca_de_luxo direcão ABS1 alarme desempenho lndesempenho eficiencia lneficiencia travcentral airbag arcondicionado potencia_motor potencia lnpotencia_motor lnpeso_bruto peso_bruto peso_carga carga lnespaco espaco lnespaço_interno espaço_interno diex_l diex_a diex_c diex_e carga_carro lncarga_carro peso_m peso_c lnpeso_m lnpeso_c lncarga lndiex_c lndiex_l lndiex_e HP_peso lnHP_peso {
-    bysort ano_cidade marca: egen ownsum = total(`var')
-    qui gen BLP2_`var' = ownsum -`var'   // Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
-    bysort ano_cidade: egen totsum = total(`var')
-    qui gen BLP3_`var' = totsum - ownsum   // Instrumento BLP (3) para produtos produzidos por outras firmas fora do mercado.
+foreach variable of local instr {
+    bysort ano_cidade marca: egen ownsum = total(`variable')
+    * Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
+    qui gen BLP2_`variable' = ownsum - `variable'
+    bysort ano_cidade: egen totsum = total(`variable')
+    * Instrumento BLP (3) para produtos produzidos por outras firmas fora do mercado.
+    qui gen BLP3_`variable' = totsum - ownsum
     drop ownsum
     drop totsum
 }
 
 
+sort ano_cidade marca carroceria
+foreach variable of local instr {
+    bysort ano_cidade marca carroceria: egen ownsum = total(`variable')
+    * Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma localizados no mesmo segmento.
+    qui gen BLP5_1_`variable' = ownsum - `variable'   
+    bysort ano_cidade carroceria: egen totsum = total(`variable')
+    * Instrumento BST (5.2) para produtos produzidos por outras firmas fora do mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas localizados no mesmo segmento.
+    qui gen BLP5_2_`variable' = totsum - ownsum  
+    drop ownsum
+    drop totsum
+}
+
+
+* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como proxy da substitubilidade dos produtos.
+*-------------------------------------------------------------------------------------------------------------------
+bysort ano_cidade marca carroceria: egen BST_1 = count(prec)
+
+* Número de modelos em um dado grupo do mercado como proxy da substitubilidade dos produtos.
+*-------------------------------------------------------------------------------------------------------------------
+bysort ano_cidade marca: egen BST_1_1 = count(prec)
+
+* Número de empresas pertencentes em um mesmo grupo como proxy do grau de concorrência.
+*----------------------------------------------------------------------------------------
+
+
+
 * ______________________________________________________________________________
 *
-* NESTED LOGIT
+*                                   SALVANDO
 * ______________________________________________________________________________
 
+save base_limpa_instr.dta
 
