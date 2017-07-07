@@ -20,13 +20,18 @@ use "BIG_File_with_fuel.dta", clear
 * 							    FORMATANDO OS DADOS
 * ______________________________________________________________________________
 
+/*
+Selecionando os dados que são considerados relevantes, como também podendo
+transformá-las para melhor uso.
+*/
+
 *-------------------------------------------------------------------------------
 * LISTA DE VARIÁVEIS A INSTRUMENTALIZAR E OUTRAS VARIÁVEIS A SEGUR
 *-------------------------------------------------------------------------------
 /* 
 instr: lista vazia a ser preenchida de variáveis para instrumentalizar
  a partir destas usando Berry.
-outras: variáveis que não serão mantidas na base.  
+outras: variáveis que serão mantidas na base.  
 */
 local instr
 local outras
@@ -47,7 +52,13 @@ local outras `outras' regiao subregiao cidadeprincipal
 *-------------------------------------------------------------------------------
 * QUANTIDADE VENDIDA
 *-------------------------------------------------------------------------------
+* Vendas no ano
 local outras `outras' vendas_ano
+
+* Vendas no mes
+forvalues i = 1(1)12 {
+    local outras `outras' sales`i'
+} 
 
 *-------------------------------------------------------------------------------
 * PREÇO
@@ -331,6 +342,16 @@ label values segmento TIPO
 local outras `outras' segmento
 
 *-------------------------------------------------------------------------------
+* CARROCERIA
+*-------------------------------------------------------------------------------
+local outras `outras' carroceria
+
+*-------------------------------------------------------------------------------
+* MARCA
+*-------------------------------------------------------------------------------
+local outras `outras' marca
+
+*-------------------------------------------------------------------------------
 * PAIS ONDE FOI PRODUZIDO
 *-------------------------------------------------------------------------------
 * Produzdo no Basil
@@ -356,10 +377,16 @@ local outras `outras' brasil mercosul acordo importado
 *                        REMOVENDO VARIÁVEIS NÃO UTILIZADAS 
 * ______________________________________________________________________________
 
-local outras `outras' ///
-      marca carroceria
-
 keep `instr' `outras'
+
+
+* ______________________________________________________________________________
+*
+*                          TRANSFORMANDO EM PAINEL LONGO 
+* ______________________________________________________________________________
+
+* Transformando vendas mensais(sales) na forma longa:
+reshape long sales, j(mes)
 
 
 * ______________________________________________________________________________
