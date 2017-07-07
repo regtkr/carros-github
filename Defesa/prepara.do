@@ -21,10 +21,33 @@ use "BIG_File_with_fuel.dta", clear
 * ______________________________________________________________________________
 
 *-------------------------------------------------------------------------------
+* LISTA DE VARIÁVEIS A INSTRUMENTALIZAR E OUTRAS VARIÁVEIS A SEGUR
+*-------------------------------------------------------------------------------
+/* 
+instr: lista vazia a ser preenchida de variáveis para instrumentalizar
+ a partir destas usando Berry.
+outras: variáveis que não serão mantidas na base.  
+*/
+local instr
+local outras
+
+*-------------------------------------------------------------------------------
 * TEMPO
 *-------------------------------------------------------------------------------
 * Excluido os anos irrelevantes
 keep if inrange(ano, 2008, 2013)
+
+local outras `outras' ano
+
+*-------------------------------------------------------------------------------
+* LOCAL
+*-------------------------------------------------------------------------------
+local outras `outras' regiao subregiao cidadeprincipal
+
+*-------------------------------------------------------------------------------
+* QUANTIDADE VENDIDA
+*-------------------------------------------------------------------------------
+local outras `outras' vendas_ano
 
 *-------------------------------------------------------------------------------
 * PREÇO
@@ -34,17 +57,18 @@ drop if prec == .
 * Preços estão multiplicados por 100, dividindo-os:
 replace prec = prec / 100
 
+local outras `outras' prec
+
+********************************************************************************
+* CORRIGINDO A INFLAÇÃO
+********************************************************************************
+* TODO
+
 *-------------------------------------------------------------------------------
 * DADOS DUPLICADOS
 *-------------------------------------------------------------------------------
 * Excluindo
 * duplicates drop marca modelo ano litros transmiss carroceria, force
-
-*-------------------------------------------------------------------------------
-* LISTA DE VARIÁVEIS A INSTRUMENTALIZAR
-*-------------------------------------------------------------------------------
-* Criando uma lista de variáveis para instrumentos a partir desta usando Berry
-local instr 
 
 *-------------------------------------------------------------------------------
 * TRANSMISSÃO
@@ -187,7 +211,6 @@ local instr `instr' garantia
 generate potencia_categorica = irecode(pote_c, 100, 200, 300, 400, 500, 750)
 generate potencia_ln = ln(pote_c)
 rename pote_c potencia
-rename moto_cc cilindradas
 
 local instr `instr' potencia potencia_ln
 
@@ -199,17 +222,23 @@ generate area_frontal   = diex_l * diex_a
 generate area_superior  = diex_l * diex_c
 generate volume_externo = diex_l * diex_c * diex_a
 
-generate area_frontal_ln = ln(area_frontal)
-generate area_superior_ln = ln(area_superior)
+generate area_frontal_ln   = ln(area_frontal)
+generate area_superior_ln  = ln(area_superior)
 generate volume_externo_ln = ln(volume_externo)
 
 * Espaço interno: distância entre os eixos X largura
 generate espaco_interno    = diex_l * diex_e
 generate espaco_interno_ln = ln(espaco_interno)
 
+* Dimenções
+generate dist_eixos_ln  = ln(diex_e)
+generate largura_ln     = ln(diex_l)
+generate comprimento_ln = ln(diex_c)
+
 local instr `instr' area_frontal area_superior volume_externo ///
 	area_frontal_ln area_superior_ln volume_externo_ln ///
-	espaco_interno espaco_interno_ln
+	espaco_interno espaco_interno_ln ///
+    dist_eixos_ln largura_ln comprimento_ln
 
 *-------------------------------------------------------------------------------
 * CONSUMO
@@ -252,19 +281,54 @@ local instr `instr' aceleracao
 *-------------------------------------------------------------------------------
 * CILINDRADAS
 *-------------------------------------------------------------------------------
+rename moto_cc cilindradas
+
 * acordo?
-/*
-generate capacidade_litros = 1 if litros==1 & acordo ==1
-replace capacidade_litros = 2 if litros==1 & acordo==0
-replace capacidade_litros = 3 if litros>=1.1 & litros<=2 & acordo ==1
-replace capacidade_litros = 4 if litros>=1.1 & litros<=2 & acordo == 0
-replace capacidade_litros = 5 if litros>2 & acordo ==1
-replace capacidade_litros = 6 if litros>2 & acordo ==0
+generate cilindradas_disc = .
+
+replace cilindradas_disc = 1 if litros == 1 & acordo == 1
+replace cilindradas_disc = 2 if litros == 1 & acordo == 0
+replace cilindradas_disc = 3 if litros >  1 & litros <= 2 & acordo == 1
+replace cilindradas_disc = 4 if litros >  1 & litros <= 2 & acordo == 0
+replace cilindradas_disc = 5 if litros >  2 & acordo == 1
+replace cilindradas_disc = 6 if litros >  2 & acordo == 0
 
 * Removendo fora destes conjuntos
+drop if cilindradas_disc == .
 
-drop if capacidade_litros==.
-*/
+* local instr `instr' cilindradas //não faz sentido vai estar refletido na pot do motor
+local outras `outras' cilindradas
+
+*-------------------------------------------------------------------------------
+* SEGMENTO
+*-------------------------------------------------------------------------------
+generate segmento = 1 if jato=="AS Carro Grande"
+replace  segmento = 2 if jato=="AS Carro Luxo"
+replace  segmento = 3 if jato=="AS Carro Médio+" ///
+                       | jato=="AS Carro Médio-"
+replace  segmento = 4 if jato=="AS Esporte"
+replace  segmento = 5 if jato=="AS MPV" ///
+                       | jato=="AS Perua Grande" ///
+                       | jato==" AS Perua Luxo" /// 
+                       | jato=="AS Perua Média"
+replace  segmento = 6 if jato=="AS Pequeno"
+replace  segmento = 7 if jato=="AS Popular"
+replace  segmento = 8 if jato=="AS SUV"
+
+rename tipo_segmento segmento
+
+label define TIPO 1 "CARRO GRANDE" ///local instr `instr' aceleracao
+                  2 "CARRO DE LUXO" ///
+                  3 "CARRO MEDIO" ///
+                  4 "ESPORTIVO" ///
+                  5 "MPV_PERUA" ///
+                  6 "CARRO PEQUENO" ///
+                  7 "CARRO POPULAR" ///
+                  8 "SUV"
+
+label values segmento TIPO
+
+local outras `outras' segmento
 
 *-------------------------------------------------------------------------------
 * PAIS ONDE FOI PRODUZIDO
@@ -285,17 +349,47 @@ replace  acordo = 1 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
 generate importado = 1
 replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
 
+local outras `outras' brasil mercosul acordo importado
 
 * ______________________________________________________________________________
 *
 *                        REMOVENDO VARIÁVEIS NÃO UTILIZADAS 
 * ______________________________________________________________________________
 
-local outras ///
-    ano regiao subregiao cidadeprincipal prec vendas_ano marca carroceria ///
-	brasil mercosul acordo importado
+local outras `outras' ///
+      marca carroceria
 
 keep `instr' `outras'
+
+
+* ______________________________________________________________________________
+*
+*                             EVENTOS 
+* ______________________________________________________________________________
+* * Criando varável de tempo para os períodos de redução do ipi e das políticas comerciais.
+
+* generate queda_1 = 1 if mes_ano==12 | mes_ano==13 | mes_ano==14 | mes_ano==15 | mes_ano==16 | mes_ano==17 | mes_ano==18 | mes_ano==19 | mes_ano==20 | mes_ano==21 | mes_ano==22 | mes_ano==23 | mes_ano==24 | mes_ano==25 | mes_ano==26 | mes_ano==27 
+* replace  queda_1 = 0 if mes_ano==1 | mes_ano==2 | mes_ano==3 | mes_ano==4 | mes_ano==5 | mes_ano==6 | mes_ano==7 | mes_ano==8 | mes_ano==9 | mes_ano==10 | mes_ano==11 | mes_ano==28 | mes_ano==29 | mes_ano==30 | mes_ano==31 | mes_ano==32 | mes_ano==33 | mes_ano==34 | mes_ano==35 | mes_ano==36 | mes_ano==37 | mes_ano==38 | mes_ano==39 | mes_ano==40 | mes_ano==41 | mes_ano==42 | mes_ano==43 | mes_ano==44 | mes_ano==45 | mes_ano==46 | mes_ano==47 | mes_ano==48 | mes_ano==49 | mes_ano==50 | mes_ano==51 | mes_ano==52 | mes_ano==53 | mes_ano==54 | mes_ano==55 | mes_ano==56 | mes_ano==57 | mes_ano==58 | mes_ano==59 | mes_ano==60 | mes_ano==61 | mes_ano==62 | mes_ano==63 | mes_ano==64 | mes_ano==65 
+
+* gen queda_2 = 1 if mes_ano==49 | mes_ano==50 | mes_ano==51 | mes_ano==52 | mes_ano==53 | mes_ano==54 | mes_ano==55 | mes_ano==56 | mes_ano==57 | mes_ano==58 | mes_ano==59 | mes_ano==60 | mes_ano==61 | mes_ano==62 | mes_ano==63 | mes_ano==64 | mes_ano==65
+* replace queda_2 = 0 if mes_ano==1 | mes_ano==2 | mes_ano==3 | mes_ano==4 | mes_ano==5 | mes_ano==6 | mes_ano==7 | mes_ano==8 | mes_ano==9 | mes_ano==10 | mes_ano==11 | mes_ano==12 | mes_ano==13 | mes_ano==14 | mes_ano==15 | mes_ano==16 | mes_ano==17 | mes_ano==18 | mes_ano==19 | mes_ano==20 | mes_ano==21 | mes_ano==22 | mes_ano==23 | mes_ano==24 | mes_ano==25 | mes_ano==26 | mes_ano==27 | mes_ano==28 | mes_ano==29 | mes_ano==30 | mes_ano==31 | mes_ano==32 | mes_ano==33 | mes_ano==34 | mes_ano==35 | mes_ano==36 | mes_ano==37 | mes_ano==38 | mes_ano==39 | mes_ano==40 | mes_ano==41 | mes_ano==42 | mes_ano==43 | mes_ano==44 | mes_ano==45 | mes_ano==46 | mes_ano==47 | mes_ano==48  
+
+
+* * Criando variáveis de interações da capacidade em litros dos carros (importados e nacionais) com os períodos de queda do IPI.
+
+* gen litros_em_cc1__primeira = litros_em_cc1 * queda_1
+* gen litros_em_cc2__primeira = litros_em_cc2 * queda_1
+* gen litros_em_cc3__primeira = litros_em_cc3 * queda_1
+* gen litros_em_cc4__primeira = litros_em_cc4 * queda_1
+* gen litros_em_cc5__primeira = litros_em_cc5 * queda_1
+* gen litros_em_cc6__primeira = litros_em_cc6 * queda_1
+
+* gen litros_em_cc1__segunda = litros_em_cc1 * queda_2
+* gen litros_em_cc2__segunda = litros_em_cc2 * queda_2
+* gen litros_em_cc3__segunda = litros_em_cc3 * queda_2
+* gen litros_em_cc4__segunda = litros_em_cc4 * queda_2
+* gen litros_em_cc5__segunda = litros_em_cc5 * queda_2
+* gen litros_em_cc6__segunda = litros_em_cc6 * queda_2
 
 
 * ______________________________________________________________________________
@@ -320,18 +414,13 @@ drop _merge
 
 * Construindo variável de share do bem j e do bem externo
 bysort ano cidadeprincipal: egen vendas_total = sum(vendas_ano)
-gen share_geral = vendas_ano / mkt_pop_
+generate share_geral = vendas_ano / mkt_pop_
+
 bysort ano cidadeprincipal: egen share_insidegood = total(share_geral)
-gen share_outsidegood = 1 - share_insidegood
-gen share_geral_ln = ln(share_geral)
-gen share_outsidegood_ln = ln(share_outsidegood)
-gen dif_share = ln(share_geral) - ln(share_outsidegood)
-
-* ______________________________________________________________________________
-*
-* CORRIGINDO A INFLAÇÃO
-* ______________________________________________________________________________
-
+generate share_outsidegood = 1 - share_insidegood
+generate share_geral_ln = ln(share_geral)
+generate share_outsidegood_ln = ln(share_outsidegood)
+generate dif_share = ln(share_geral) - ln(share_outsidegood)
 
 * ______________________________________________________________________________
 *
@@ -356,10 +445,10 @@ sort ano_cidade marca
 foreach variable of local instr {
     bysort ano_cidade marca: egen ownsum = total(`variable')
     * Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
-    qui gen BLP2_`variable' = ownsum - `variable'
+    qui generate BLP2_`variable' = ownsum - `variable'
     bysort ano_cidade: egen totsum = total(`variable')
     * Instrumento BLP (3) para produtos produzidos por outras firmas fora do mercado.
-    qui gen BLP3_`variable' = totsum - ownsum
+    qui generate BLP3_`variable' = totsum - ownsum
     drop ownsum
     drop totsum
 }
@@ -374,13 +463,13 @@ foreach variable of local instr {
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
-    qui gen BLP5_1_`variable' = ownsum - `variable'   
+    qui generate BLP5_1_`variable' = ownsum - `variable'   
     bysort ano_cidade carroceria: egen totsum = total(`variable')
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos por outras firmas
 	localizados no mesmo segmento. */ 
-    qui gen BLP5_2_`variable' = totsum - ownsum  
+    qui generate BLP5_2_`variable' = totsum - ownsum  
     drop ownsum
     drop totsum
 }
