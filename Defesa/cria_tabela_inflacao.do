@@ -20,7 +20,7 @@ maio de 2013
 * cilindradas X combustível X mes_ano
 set obs 65
 
-input
+input inflacao mes_ano
 
 * inflação mes_ano
 0.998309 1
@@ -89,9 +89,6 @@ input
 0.998209 64
 1.000000 65
 
-end
-
-
 ********************************************************************************
 * DIVIDINDO MES E ANO
 ********************************************************************************
@@ -103,4 +100,5 @@ generate mes = mod(mes_ano - 1, 12) + 1
 * 							SALVANDO 
 * ______________________________________________________________________________
 
-save 'inflacao.dta'
+cd "/mnt/84DC97E6DC97D0B2/carros"
+save "inflacao.dta"
