@@ -170,5 +170,7 @@ replace VAT = 0.545 if cilindrada == 6 & combustivel== "gasolina" & (mes_ano >= 
 * 									SALVANDO 
 * ______________________________________________________________________________
 
+rename cilindrada cilindrada_acordo
+
 cd "/mnt/84DC97E6DC97D0B2/carros"
 save "VAT.dta"

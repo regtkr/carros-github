@@ -56,9 +56,7 @@ local outras `outras' regiao subregiao cidadeprincipal
 local outras `outras' vendas_ano
 
 * Vendas no mes
-forvalues i = 1(1)12 {
-    local outras `outras' sales`i'
-} 
+local outras `outras' sales_*
 
 *-------------------------------------------------------------------------------
 * PREÇO
@@ -74,12 +72,6 @@ local outras `outras' prec
 * CORRIGINDO A INFLAÇÃO
 ********************************************************************************
 * TODO
-
-*-------------------------------------------------------------------------------
-* DADOS DUPLICADOS
-*-------------------------------------------------------------------------------
-* Excluindo
-* duplicates drop marca modelo ano litros transmiss carroceria, force
 
 *-------------------------------------------------------------------------------
 * TRANSMISSÃO
@@ -290,25 +282,53 @@ rename dese_a aceleracao
 local instr `instr' aceleracao
 
 *-------------------------------------------------------------------------------
+* PAIS ONDE FOI PRODUZIDO
+*-------------------------------------------------------------------------------
+* Produzdo no Basil
+generate brasil = 0
+replace  brasil = 1 if pais == "BR"
+
+* Produzidos no mercosul
+generate mercosul = 0
+replace  mercosul = 1 if pais == "A" | pais == "UY" | pais == "BR"
+
+* Produzido dentro de acodo comercial com o Brasil
+generate acordo = 0
+replace  acordo = 1 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
+
+* Carros fora do mercosul e de acordos comerciais
+generate importado = 1
+replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
+
+local outras `outras' brasil mercosul acordo importado
+
+*-------------------------------------------------------------------------------
 * CILINDRADAS
 *-------------------------------------------------------------------------------
 rename moto_cc cilindradas
 
-* acordo?
-generate cilindradas_disc = .
+local outras `outras' cilindradas litros
 
-replace cilindradas_disc = 1 if litros == 1 & acordo == 1
-replace cilindradas_disc = 2 if litros == 1 & acordo == 0
-replace cilindradas_disc = 3 if litros >  1 & litros <= 2 & acordo == 1
-replace cilindradas_disc = 4 if litros >  1 & litros <= 2 & acordo == 0
-replace cilindradas_disc = 5 if litros >  2 & acordo == 1
-replace cilindradas_disc = 6 if litros >  2 & acordo == 0
+*-------------------------------------------------------------------------------
+* CILINDRADAS-ACORDO
+*-------------------------------------------------------------------------------
+generate cilindrada_acordo = .
+
+replace cilindrada_acordo = 1 if litros == 1 & acordo == 1
+replace cilindrada_acordo = 2 if litros == 1 & acordo == 0
+replace cilindrada_acordo = 3 if litros >  1 & litros <= 2 & acordo == 1
+replace cilindrada_acordo = 4 if litros >  1 & litros <= 2 & acordo == 0
+replace cilindrada_acordo = 5 if litros >  2 & acordo == 1
+replace cilindrada_acordo = 6 if litros >  2 & acordo == 0
 
 * Removendo fora destes conjuntos
-drop if cilindradas_disc == .
+drop if cilindrada_acordo == .
+
+* Criando dummies de cilindrada-acordo
+quietly tabulate cilindrada_acordo, generate(cilindrada_dummy)
 
 * local instr `instr' cilindradas //não faz sentido vai estar refletido na pot do motor
-local outras `outras' cilindradas
+local outras `outras' cilindrada_acordo cilindrada_dummy*
 
 *-------------------------------------------------------------------------------
 * SEGMENTO
@@ -325,8 +345,6 @@ replace  segmento = 5 if jato=="AS MPV" ///
 replace  segmento = 6 if jato=="AS Pequeno"
 replace  segmento = 7 if jato=="AS Popular"
 replace  segmento = 8 if jato=="AS SUV"
-
-rename tipo_segmento segmento
 
 label define TIPO 1 "CARRO GRANDE" ///local instr `instr' aceleracao
                   2 "CARRO DE LUXO" ///
@@ -352,25 +370,19 @@ local outras `outras' carroceria
 local outras `outras' marca
 
 *-------------------------------------------------------------------------------
-* PAIS ONDE FOI PRODUZIDO
+* MOLDELO
 *-------------------------------------------------------------------------------
-* Produzdo no Basil
-generate brasil = 0
-replace  brasil = 1 if pais == "BR"
+local outras `outras' modelo
 
-* Produzidos no mercosul
-generate mercosul = 0
-replace  mercosul = 1 if pais == "A" | pais == "UY" | pais == "BR"
+*-------------------------------------------------------------------------------
+* PORTAS
+*-------------------------------------------------------------------------------
+local outras `outras' portas
 
-* Produzido dentro de acodo comercial com o Brasil
-generate acordo = 0
-replace  acordo = 1 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
-
-* Carros fora do mercosul e de acordos comerciais
-generate importado = 1
-replace  importado = 0 if pais=="BR" | pais=="A" | pais=="MEX" | pais=="UY"
-
-local outras `outras' brasil mercosul acordo importado
+*-------------------------------------------------------------------------------
+* COMBUSTÍVEL
+*-------------------------------------------------------------------------------
+local outras `outras' combustivel
 
 * ______________________________________________________________________________
 *
@@ -382,41 +394,84 @@ keep `instr' `outras'
 
 * ______________________________________________________________________________
 *
-*                          TRANSFORMANDO EM PAINEL LONGO 
+*                       		 PAINEL LONGO 
 * ______________________________________________________________________________
 
+*-------------------------------------------------------------------------------
+* DADOS DUPLICADOS
+*-------------------------------------------------------------------------------
+* Excluindo (Verificar com mais cuidado)
+duplicates drop ///
+	marca modelo ano combustivel litros carroceria transmiss portas ///
+	subregiao cidadeprincipal, ///
+	force
+	
+*-------------------------------------------------------------------------------
+* TRANSFORMANDO EM PAINEL LONGO 
+*-------------------------------------------------------------------------------
 * Transformando vendas mensais(sales) na forma longa:
-reshape long sales, j(mes)
+reshape long sales_, ///
+	i(marca modelo ano combustivel litros carroceria transmiss portas ///
+		subregiao cidadeprincipal) ///
+	j(mes)
+
+rename sales_ vendas
+
+* ______________________________________________________________________________
+*
+*                             CORREÇÕES NO PREÇO 
+* ______________________________________________________________________________
+
+*-------------------------------------------------------------------------------
+* CORRIGINDO INFLAÇÃO
+*-------------------------------------------------------------------------------
+* Abrindo tabela de inflação
+merge m:1 ano mes using "inflacao.dta"
+drop if _merge != 3
+drop _merge
+
+* Corrigindo
+replace prec = prec * inflacao
 
 
 * ______________________________________________________________________________
 *
-*                             EVENTOS 
+*                         UNINDO MES E ANO 
 * ______________________________________________________________________________
-* * Criando varável de tempo para os períodos de redução do ipi e das políticas comerciais.
 
-* generate queda_1 = 1 if mes_ano==12 | mes_ano==13 | mes_ano==14 | mes_ano==15 | mes_ano==16 | mes_ano==17 | mes_ano==18 | mes_ano==19 | mes_ano==20 | mes_ano==21 | mes_ano==22 | mes_ano==23 | mes_ano==24 | mes_ano==25 | mes_ano==26 | mes_ano==27 
-* replace  queda_1 = 0 if mes_ano==1 | mes_ano==2 | mes_ano==3 | mes_ano==4 | mes_ano==5 | mes_ano==6 | mes_ano==7 | mes_ano==8 | mes_ano==9 | mes_ano==10 | mes_ano==11 | mes_ano==28 | mes_ano==29 | mes_ano==30 | mes_ano==31 | mes_ano==32 | mes_ano==33 | mes_ano==34 | mes_ano==35 | mes_ano==36 | mes_ano==37 | mes_ano==38 | mes_ano==39 | mes_ano==40 | mes_ano==41 | mes_ano==42 | mes_ano==43 | mes_ano==44 | mes_ano==45 | mes_ano==46 | mes_ano==47 | mes_ano==48 | mes_ano==49 | mes_ano==50 | mes_ano==51 | mes_ano==52 | mes_ano==53 | mes_ano==54 | mes_ano==55 | mes_ano==56 | mes_ano==57 | mes_ano==58 | mes_ano==59 | mes_ano==60 | mes_ano==61 | mes_ano==62 | mes_ano==63 | mes_ano==64 | mes_ano==65 
-
-* gen queda_2 = 1 if mes_ano==49 | mes_ano==50 | mes_ano==51 | mes_ano==52 | mes_ano==53 | mes_ano==54 | mes_ano==55 | mes_ano==56 | mes_ano==57 | mes_ano==58 | mes_ano==59 | mes_ano==60 | mes_ano==61 | mes_ano==62 | mes_ano==63 | mes_ano==64 | mes_ano==65
-* replace queda_2 = 0 if mes_ano==1 | mes_ano==2 | mes_ano==3 | mes_ano==4 | mes_ano==5 | mes_ano==6 | mes_ano==7 | mes_ano==8 | mes_ano==9 | mes_ano==10 | mes_ano==11 | mes_ano==12 | mes_ano==13 | mes_ano==14 | mes_ano==15 | mes_ano==16 | mes_ano==17 | mes_ano==18 | mes_ano==19 | mes_ano==20 | mes_ano==21 | mes_ano==22 | mes_ano==23 | mes_ano==24 | mes_ano==25 | mes_ano==26 | mes_ano==27 | mes_ano==28 | mes_ano==29 | mes_ano==30 | mes_ano==31 | mes_ano==32 | mes_ano==33 | mes_ano==34 | mes_ano==35 | mes_ano==36 | mes_ano==37 | mes_ano==38 | mes_ano==39 | mes_ano==40 | mes_ano==41 | mes_ano==42 | mes_ano==43 | mes_ano==44 | mes_ano==45 | mes_ano==46 | mes_ano==47 | mes_ano==48  
+* generate mes_ano = (ano - 2008) * 12 + mes
 
 
-* * Criando variáveis de interações da capacidade em litros dos carros (importados e nacionais) com os períodos de queda do IPI.
+* ______________________________________________________________________________
+*
+*                             EVENTOS
+* ______________________________________________________________________________
 
-* gen litros_em_cc1__primeira = litros_em_cc1 * queda_1
-* gen litros_em_cc2__primeira = litros_em_cc2 * queda_1
-* gen litros_em_cc3__primeira = litros_em_cc3 * queda_1
-* gen litros_em_cc4__primeira = litros_em_cc4 * queda_1
-* gen litros_em_cc5__primeira = litros_em_cc5 * queda_1
-* gen litros_em_cc6__primeira = litros_em_cc6 * queda_1
+*-------------------------------------------------------------------------------
+* MODIFICAÇÕES AO LONGO DO TEMPO NO VAT
+*-------------------------------------------------------------------------------
+merge m:1 ano mes cilindrada_acordo combustivel using "VAT.dta"
+drop if _merge != 3
+drop _merge
 
-* gen litros_em_cc1__segunda = litros_em_cc1 * queda_2
-* gen litros_em_cc2__segunda = litros_em_cc2 * queda_2
-* gen litros_em_cc3__segunda = litros_em_cc3 * queda_2
-* gen litros_em_cc4__segunda = litros_em_cc4 * queda_2
-* gen litros_em_cc5__segunda = litros_em_cc5 * queda_2
-* gen litros_em_cc6__segunda = litros_em_cc6 * queda_2
+*-------------------------------------------------------------------------------
+* ITERAÇÃO ENTRE QUEDA DO IPI E A CILINDRADA-COMBUSTÍVEL
+*-------------------------------------------------------------------------------
+* Criando varável de tempo para os períodos de redução do ipi e das políticas comerciais.
+generate queda_1 = 0
+replace  queda_1 = 1 if mes_ano >= 12 & mes_ano <= 27
+
+generate queda_2 = 0
+replace  queda_2 = 1 if mes_ano >= 49 & mes_ano <= 65
+
+/* Criando variáveis de interações da capacidade em litros dos carros (importados
+e nacionais) com os períodos de queda do IPI. Não esquecer que são seis categorias 
+de cilindradas-combustível comforme acima */
+
+forvalues i = 1 / 6 {
+    generate cc`i'__queda_1 = cilindrada_dummy`i' * queda_1
+    generate cc`i'__queda_2 = cilindrada_dummy`i' * queda_2
+}
 
 
 * ______________________________________________________________________________
@@ -427,27 +482,29 @@ reshape long sales, j(mes)
 
 * ______________________________________________________________________________
 *
-* 					UNINDO A BASE DE MERCADO POTENCIAL
+*                             MERCADO POTENCIAL 
 * ______________________________________________________________________________
-merge m:1 ano regiao subregiao cidade using "Pot_mkt.dta"
 
+*-------------------------------------------------------------------------------
+* UNINDO A BASE DE MERCADO POTENCIAL
+*-------------------------------------------------------------------------------
+merge m:1 ano regiao subregiao cidade using "Pot_mkt.dta"
 drop if _merge != 3
 drop _merge
 
-* ______________________________________________________________________________
-*
-* 	CONSTRUINDO MERCADO POTECIAL E CALCULANDO A PARTICIPAÇÃO NOS MERCADOS
-* ______________________________________________________________________________
-
+*-------------------------------------------------------------------------------
+* CONSTRUINDO MERCADO POTECIAL E CALCULANDO A PARTICIPAÇÃO NOS MERCADOS
+*-------------------------------------------------------------------------------
 * Construindo variável de share do bem j e do bem externo
-bysort ano cidadeprincipal: egen vendas_total = sum(vendas_ano)
-generate share_geral = vendas_ano / mkt_pop_
+bysort ano subregiao cidadeprincipal: egen vendas_total = sum(vendas)
+generate share_geral = vendas / mkt_pop_
 
-bysort ano cidadeprincipal: egen share_insidegood = total(share_geral)
+bysort ano subregiao cidadeprincipal: egen share_insidegood = total(share_geral)
 generate share_outsidegood = 1 - share_insidegood
 generate share_geral_ln = ln(share_geral)
 generate share_outsidegood_ln = ln(share_outsidegood)
 generate dif_share = ln(share_geral) - ln(share_outsidegood)
+
 
 * ______________________________________________________________________________
 *
@@ -457,7 +514,7 @@ generate dif_share = ln(share_geral) - ln(share_outsidegood)
 *-------------------------------------------------------------------------------
 * CIDADE E ANO
 *-------------------------------------------------------------------------------
-egen ano_cidade = group(ano cidadeprincipal), label
+egen ano_cidade = group(ano subregiao cidadeprincipal), label
 
 
 * ______________________________________________________________________________

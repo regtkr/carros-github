@@ -95,6 +95,8 @@ input inflacao mes_ano
 generate ano = int((mes_ano - 1) / 12) + 2008
 generate mes = mod(mes_ano - 1, 12) + 1
 
+drop mes_ano
+
 * ______________________________________________________________________________
 *
 * 							SALVANDO 
