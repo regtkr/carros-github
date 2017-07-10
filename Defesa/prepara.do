@@ -42,7 +42,9 @@ local outras
 * Excluido os anos irrelevantes
 keep if inrange(ano, 2008, 2013)
 
-local outras `outras' ano
+quietly tabulate ano, generate(ano_dummy)
+
+local outras `outras' ano ano_dummy*
 
 *-------------------------------------------------------------------------------
 * LOCAL
@@ -101,10 +103,10 @@ local instr `instr' pilotoauto
 *-------------------------------------------------------------------------------
 * AR CONDICIONADO
 *-------------------------------------------------------------------------------
-generate arcondicianado = 0
-replace arcondicianado = 1 if arco == "std"
+generate arcondicionado = 0
+replace arcondicionado = 1 if arco == "std"
 
-local instr `instr' arcondicianado
+local instr `instr' arcondicionado
 
 *-------------------------------------------------------------------------------
 * MATERIAL DA RODA
@@ -208,16 +210,6 @@ rename gato_d garantia
 local instr `instr' garantia
 
 *-------------------------------------------------------------------------------
-* POTÊCIA DO MOTOR
-*-------------------------------------------------------------------------------
-*qui 
-generate potencia_categorica = irecode(pote_c, 100, 200, 300, 400, 500, 750)
-generate potencia_ln = ln(pote_c)
-rename pote_c potencia
-
-local instr `instr' potencia potencia_ln
-
-*-------------------------------------------------------------------------------
 * ESPAÇO INTERNO
 *-------------------------------------------------------------------------------
 * diex_X, X corresponde a: a(altura), l(largura), c(comprimento)
@@ -265,6 +257,17 @@ rename   peso_b peso_bruto
 rename   carg_v carga_carro
 
 local instr `instr' carga_paga_max carga_ln peso_bruto peso_bruto_ln carga_carro
+
+*-------------------------------------------------------------------------------
+* POTÊCIA DO MOTOR
+*-------------------------------------------------------------------------------
+*qui 
+generate potencia_categorica = irecode(pote_c, 100, 200, 300, 400, 500, 750)
+generate potencia_ln = ln(pote_c)
+rename pote_c potencia
+generate potencia_especifica = potencia / peso_bruto
+
+local instr `instr' potencia potencia_ln potencia_especifica
 
 *-------------------------------------------------------------------------------
 * VELOCIADADE MÁXIMA
@@ -410,12 +413,12 @@ duplicates drop ///
 * TRANSFORMANDO EM PAINEL LONGO 
 *-------------------------------------------------------------------------------
 * Transformando vendas mensais(sales) na forma longa:
-reshape long sales_, ///
-	i(marca modelo ano combustivel litros carroceria transmiss portas ///
-		subregiao cidadeprincipal) ///
-	j(mes)
+* reshape long sales_, ///
+* 	i(marca modelo ano combustivel litros carroceria transmiss portas ///
+* 		subregiao cidadeprincipal) ///
+* 	j(mes)
 
-rename sales_ vendas
+* rename sales_ vendas
 
 * ______________________________________________________________________________
 *
@@ -426,12 +429,12 @@ rename sales_ vendas
 * CORRIGINDO INFLAÇÃO
 *-------------------------------------------------------------------------------
 * Abrindo tabela de inflação
-merge m:1 ano mes using "inflacao.dta"
-drop if _merge != 3
-drop _merge
+* merge m:1 ano mes using "inflacao.dta"
+* drop if _merge != 3
+* drop _merge
 
-* Corrigindo
-replace prec = prec * inflacao
+* * Corrigindo
+* replace prec = prec * inflacao
 
 
 * ______________________________________________________________________________
@@ -450,28 +453,28 @@ replace prec = prec * inflacao
 *-------------------------------------------------------------------------------
 * MODIFICAÇÕES AO LONGO DO TEMPO NO VAT
 *-------------------------------------------------------------------------------
-merge m:1 ano mes cilindrada_acordo combustivel using "VAT.dta"
-drop if _merge != 3
-drop _merge
+* merge m:1 ano mes cilindrada_acordo combustivel using "VAT.dta"
+* drop if _merge != 3
+* drop _merge
 
 *-------------------------------------------------------------------------------
 * ITERAÇÃO ENTRE QUEDA DO IPI E A CILINDRADA-COMBUSTÍVEL
 *-------------------------------------------------------------------------------
 * Criando varável de tempo para os períodos de redução do ipi e das políticas comerciais.
-generate queda_1 = 0
-replace  queda_1 = 1 if mes_ano >= 12 & mes_ano <= 27
+* generate queda_1 = 0
+* replace  queda_1 = 1 if mes_ano >= 12 & mes_ano <= 27
 
-generate queda_2 = 0
-replace  queda_2 = 1 if mes_ano >= 49 & mes_ano <= 65
+* generate queda_2 = 0
+* replace  queda_2 = 1 if mes_ano >= 49 & mes_ano <= 65
 
 /* Criando variáveis de interações da capacidade em litros dos carros (importados
 e nacionais) com os períodos de queda do IPI. Não esquecer que são seis categorias 
 de cilindradas-combustível comforme acima */
 
-forvalues i = 1 / 6 {
-    generate cc`i'__queda_1 = cilindrada_dummy`i' * queda_1
-    generate cc`i'__queda_2 = cilindrada_dummy`i' * queda_2
-}
+* forvalues i = 1 / 6 {
+*     generate cc`i'__queda_1 = cilindrada_dummy`i' * queda_1
+*     generate cc`i'__queda_2 = cilindrada_dummy`i' * queda_2
+* }
 
 
 * ______________________________________________________________________________
@@ -496,14 +499,42 @@ drop _merge
 * CONSTRUINDO MERCADO POTECIAL E CALCULANDO A PARTICIPAÇÃO NOS MERCADOS
 *-------------------------------------------------------------------------------
 * Construindo variável de share do bem j e do bem externo
-bysort ano subregiao cidadeprincipal: egen vendas_total = sum(vendas)
-generate share_geral = vendas / mkt_pop_
+bysort ano subregiao cidadeprincipal: egen vendas_total = sum(vendas_ano)
+generate share_geral = vendas_ano / mkt_pop_
 
 bysort ano subregiao cidadeprincipal: egen share_insidegood = total(share_geral)
 generate share_outsidegood = 1 - share_insidegood
 generate share_geral_ln = ln(share_geral)
 generate share_outsidegood_ln = ln(share_outsidegood)
 generate dif_share = ln(share_geral) - ln(share_outsidegood)
+
+********************************************************************************
+* GREGOS
+********************************************************************************
+/*
+s_jt:   share de cada veículo no ano
+outshr: share que não comprou
+lnsj0:  ln do share normalizado
+
+sg1: Share do ninho ano combustivel
+sg2: Share do subninho ano combustivel segmento
+*/
+
+generate s_jt = vendas_ano / mkt_pop_
+bysort ano: egen outshr = 1 - sum(s_jt)
+* replace outshr = 1 - outshr
+generate lnsj0 = ln(s_jt / outshr)
+
+* Share dos Ninhos
+egen sg1 = sum(s_jt), by(combustivel ano)
+egen sg2 = sum(s_jt), by(segmento combustivel ano)
+
+* Algumas relações
+generate sg2g1   = sg2 / sg1
+generate lnsg2g1 = ln(sg2g1)
+generate sjg2    = s_jt / sg2
+generate lnsjg2  = ln(s_jt/sg2)
+generate sjg1    = s_jt / sg1 //Mudei o nome de sjgg para sjg1
 
 
 * ______________________________________________________________________________
@@ -523,7 +554,7 @@ egen ano_cidade = group(ano subregiao cidadeprincipal), label
 * ______________________________________________________________________________
 
 *-------------------------------------------------------------------------------
-* INSTRUMENTOS BLP
+* INSTRUMENTOS BLP (Berry, Levinsohn and Pakes (1995))
 *-------------------------------------------------------------------------------
 sort ano_cidade marca
 foreach variable of local instr {
@@ -538,7 +569,7 @@ foreach variable of local instr {
 }
 
 *-------------------------------------------------------------------------------
-* INSTRUMENTOS BST
+* INSTRUMENTOS BST (Berry, S. T. (1994))
 *-------------------------------------------------------------------------------
 sort ano_cidade marca carroceria
 foreach variable of local instr {
@@ -578,5 +609,6 @@ bysort ano_cidade marca: egen BST_1_1 = count(prec)
 *                                   SALVANDO
 * ______________________________________________________________________________
 
-save base_limpa_instr.dta
+save base_limpa_instr.dta, replace
+outsheet using base_limpa_instr.csv, comma nonames replace
 
