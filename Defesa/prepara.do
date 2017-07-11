@@ -387,6 +387,13 @@ local outras `outras' portas
 *-------------------------------------------------------------------------------
 local outras `outras' combustivel
 
+*-------------------------------------------------------------------------------
+* EMISSAO CO2 (g/km)
+*-------------------------------------------------------------------------------
+rename emis_c CO2
+
+local outras `outras' CO2
+
 * ______________________________________________________________________________
 *
 *                        REMOVENDO VARIÁVEIS NÃO UTILIZADAS 
@@ -573,13 +580,13 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 sort ano_cidade marca carroceria
 foreach variable of local instr {
-    bysort ano_cidade marca carroceria: egen ownsum = total(`variable')
+    bysort ano_cidade marca segmento: egen ownsum = total(`variable') //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
     qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_cidade carroceria: egen totsum = total(`variable')
+    bysort ano_cidade segmento: egen totsum = total(`variable') //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos por outras firmas
@@ -594,7 +601,7 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 /* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como 
 proxy da substitubilidade dos produtos. */
-bysort ano_cidade marca carroceria: egen BST_1 = count(prec)
+bysort ano_cidade marca segmento: egen BST_1 = count(prec) //Troquei carroceria por segmento
 
 /* Número de modelos em um dado grupo do mercado como proxy da substitubilidade
  dos produtos. */
@@ -610,5 +617,5 @@ bysort ano_cidade marca: egen BST_1_1 = count(prec)
 * ______________________________________________________________________________
 
 save base_limpa_instr.dta, replace
-outsheet using base_limpa_instr.csv, comma nonames replace
+* outsheet using base_limpa_instr.csv, comma replace
 
