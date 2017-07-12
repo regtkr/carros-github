@@ -68,7 +68,9 @@ drop if prec == .
 * Preços estão multiplicados por 100, dividindo-os:
 replace prec = prec / 100
 
-local outras `outras' prec
+generate prec_ln = ln(prec)
+
+local outras `outras' prec prec_ln
 
 ********************************************************************************
 * CORRIGINDO A INFLAÇÃO
@@ -528,8 +530,8 @@ sg2: Share do subninho ano combustivel segmento
 */
 
 generate s_jt = vendas_ano / mkt_pop_
-bysort ano: egen outshr = 1 - sum(s_jt)
-* replace outshr = 1 - outshr
+bysort ano: egen outshr = sum(s_jt)
+replace outshr = 1 - outshr
 generate lnsj0 = ln(s_jt / outshr)
 
 * Share dos Ninhos
