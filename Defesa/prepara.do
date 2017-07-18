@@ -332,7 +332,7 @@ drop if cilindrada_acordo == .
 * Criando dummies de cilindrada-acordo
 quietly tabulate cilindrada_acordo, generate(cilindrada_dummy)
 
-* local instr `instr' cilindradas //não faz sentido vai estar refletido na pot do motor
+* local instr `instr' cilindradas //não faz sentido vai estar refletido na pot do mot
 local outras `outras' cilindrada_acordo cilindrada_dummy*
 
 *-------------------------------------------------------------------------------
@@ -469,7 +469,7 @@ duplicates drop ///
 *-------------------------------------------------------------------------------
 * ITERAÇÃO ENTRE QUEDA DO IPI E A CILINDRADA-COMBUSTÍVEL
 *-------------------------------------------------------------------------------
-* Criando varável de tempo para os períodos de redução do ipi e das políticas comerciais.
+* Criando varável de tempo para os períodos de redução do ipi e políticas comerciais.
 * generate queda_1 = 0
 * replace  queda_1 = 1 if mes_ano >= 12 & mes_ano <= 27
 
@@ -484,12 +484,6 @@ de cilindradas-combustível comforme acima */
 *     generate cc`i'__queda_1 = cilindrada_dummy`i' * queda_1
 *     generate cc`i'__queda_2 = cilindrada_dummy`i' * queda_2
 * }
-
-
-* ______________________________________________________________________________
-*
-* BASE DE VOLUME ORIGINAL
-* ______________________________________________________________________________
 
 
 * ______________________________________________________________________________
@@ -530,7 +524,7 @@ sg2: Share do subninho ano combustivel segmento
 */
 
 generate s_jt = vendas_ano / mkt_pop_
-bysort ano: egen outshr = sum(s_jt)
+bysort ano subregiao cidadeprincipal: egen outshr = sum(s_jt)
 replace outshr = 1 - outshr
 generate lnsj0 = ln(s_jt / outshr)
 
@@ -582,13 +576,15 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 sort ano_cidade marca carroceria
 foreach variable of local instr {
-    bysort ano_cidade marca segmento: egen ownsum = total(`variable') //Troquei carroceria por segmento
+    bysort ano_cidade marca segmento: egen ownsum = total(`variable') 
+    //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
     qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_cidade segmento: egen totsum = total(`variable') //Troquei carroceria por segmento
+    bysort ano_cidade segmento: egen totsum = total(`variable') 
+    //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos por outras firmas
@@ -603,14 +599,15 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 /* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como 
 proxy da substitubilidade dos produtos. */
-bysort ano_cidade marca segmento: egen BST_1 = count(prec) //Troquei carroceria por segmento
+bysort ano_cidade marca segmento: egen BST_1 = count(prec) 
+//Troquei carroceria por segmento
 
 /* Número de modelos em um dado grupo do mercado como proxy da substitubilidade
  dos produtos. */
 bysort ano_cidade marca: egen BST_1_1 = count(prec)
 
-* Número de empresas pertencentes em um mesmo grupo como proxy do grau de concorrência.
-*----------------------------------------------------------------------------------------
+* Número de empresas pertencentes num mesmo grupo como proxy do grau de concorrência.
+*-------------------------------------------------------------------------------
 
 
 * ______________________________________________________________________________
