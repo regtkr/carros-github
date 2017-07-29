@@ -10,14 +10,36 @@ Cria variáveis instrumentais
 *                             ABRINDO A BASE DE DADOS
 * ______________________________________________________________________________
 
-clear
+* clear
 cd "/mnt/84DC97E6DC97D0B2/carros"
 use "BIG_File_with_fuel.dta", clear
 
 
 * ______________________________________________________________________________
 *
-* 							    FORMATANDO OS DADOS
+*                          REMOVENDO DADOS ESTRANHOS 
+* ______________________________________________________________________________
+
+* Cortando regiões nada a ver
+drop if cidadeprincipal=="AAAAA"
+gen outros=strmatch(cidadeprincipal,"OTHERS*")
+drop if outros==1
+* drop if ano==2013
+
+* Cortando marca de milionário
+* drop if marca=="FERRARI"
+* drop if marca=="ASTON MARTIN"
+* drop if marca=="BENTLEY"
+* drop if marca=="JAGUAR"
+* drop if marca=="LAMBORGHINI"
+* drop if marca=="LEXUS"
+* drop if marca=="MASERATI"
+* drop if marca=="ROLLS-ROYCE"
+
+
+* ______________________________________________________________________________
+*
+*                             FORMATANDO OS DADOS
 * ______________________________________________________________________________
 
 /*
@@ -64,13 +86,13 @@ local outras `outras' sales_*
 * PREÇO
 *-------------------------------------------------------------------------------
 * Removendo carros sem preço
-drop if prec == .
+drop if preco == .
 * Preços estão multiplicados por 100, dividindo-os:
-replace prec = prec / 100
+replace preco = preco / 100
 
-generate prec_ln = ln(prec)
+generate preco_ln = ln(preco)
 
-local outras `outras' prec prec_ln
+local outras `outras' preco preco_ln
 
 ********************************************************************************
 * CORRIGINDO A INFLAÇÃO
@@ -106,7 +128,8 @@ local instr `instr' pilotoauto
 * AR CONDICIONADO
 *-------------------------------------------------------------------------------
 generate arcondicionado = 0
-replace arcondicionado = 1 if arco == "std"
+replace  arcondicionado = 1 if arco == "std"
+replace  arcondicionado = 0 if arco_p != .
 
 local instr `instr' arcondicionado
 
@@ -278,6 +301,7 @@ generate veloc_max_ln = ln(dese_v)
 rename   dese_v veloc_max
 
 local instr `instr' veloc_max
+local outros `outros' veloc_max_ln
 
 *-------------------------------------------------------------------------------
 * ACELERAÇÃO DE 0 A 100
@@ -338,6 +362,8 @@ local outras `outras' cilindrada_acordo cilindrada_dummy*
 *-------------------------------------------------------------------------------
 * SEGMENTO
 *-------------------------------------------------------------------------------
+replace jato = trim(jato)
+
 generate segmento = 1 if jato=="AS Carro Grande"
 replace  segmento = 2 if jato=="AS Carro Luxo"
 replace  segmento = 3 if jato=="AS Carro Médio+" ///
@@ -345,13 +371,13 @@ replace  segmento = 3 if jato=="AS Carro Médio+" ///
 replace  segmento = 4 if jato=="AS Esporte"
 replace  segmento = 5 if jato=="AS MPV" ///
                        | jato=="AS Perua Grande" ///
-                       | jato==" AS Perua Luxo" /// 
+                       | jato=="AS Perua Luxo" /// 
                        | jato=="AS Perua Média"
 replace  segmento = 6 if jato=="AS Pequeno"
 replace  segmento = 7 if jato=="AS Popular"
 replace  segmento = 8 if jato=="AS SUV"
 
-label define TIPO 1 "CARRO GRANDE" ///local instr `instr' aceleracao
+label define TIPO 1 "CARRO GRANDE" ///
                   2 "CARRO DE LUXO" ///
                   3 "CARRO MEDIO" ///
                   4 "ESPORTIVO" ///
@@ -362,7 +388,7 @@ label define TIPO 1 "CARRO GRANDE" ///local instr `instr' aceleracao
 
 label values segmento TIPO
 
-local outras `outras' segmento
+local outras `outras' segmento jato
 
 *-------------------------------------------------------------------------------
 * CARROCERIA
@@ -372,7 +398,9 @@ local outras `outras' carroceria
 *-------------------------------------------------------------------------------
 * MARCA
 *-------------------------------------------------------------------------------
-local outras `outras' marca
+encode marca, generate(marca_e)
+
+local outras `outras' marca marca_e
 
 *-------------------------------------------------------------------------------
 * MOLDELO
@@ -387,7 +415,13 @@ local outras `outras' portas
 *-------------------------------------------------------------------------------
 * COMBUSTÍVEL
 *-------------------------------------------------------------------------------
-local outras `outras' combustivel
+encode combustivel, generate(combustivel_e)
+
+* flex
+generate flex = strmatch(versao,"*FLEX*")
+encode   flex, generate(flex_e)  
+
+local outras `outras' combustivel combustivel_e flex flex_e
 
 *-------------------------------------------------------------------------------
 * EMISSAO CO2 (g/km)
@@ -396,6 +430,17 @@ rename emis_c CO2
 
 local outras `outras' CO2
 
+*-------------------------------------------------------------------------------
+* CATEGORIA IMPOSTOS
+*-------------------------------------------------------------------------------
+generate cat_ipi = 1 if litros <= 1.0 & flex == 0
+replace  cat_ipi = 2 if litros <= 1.0 & flex == 1) 
+replace  cat_ipi = 3 if litros >  1.0 & litros <= 2.0 & combustivel == "gasolina")
+replace  cat_ipi = 4 if litros >  1.0 & litros <= 2.0 & combustivel == "álcool")
+replace  cat_ipi = 5 if litros >  2.0 & combustivel == "gasolina")
+replace  cat_ipi = 6 if litros >  2.0 & combustivel == "álcool")
+
+local outras `outras' cat_ipi
 * ______________________________________________________________________________
 *
 *                        REMOVENDO VARIÁVEIS NÃO UTILIZADAS 
@@ -443,7 +488,7 @@ duplicates drop ///
 * drop _merge
 
 * * Corrigindo
-* replace prec = prec * inflacao
+* replace preco = preco * inflacao
 
 
 * ______________________________________________________________________________
@@ -498,12 +543,19 @@ merge m:1 ano regiao subregiao cidade using "Pot_mkt.dta"
 drop if _merge != 3
 drop _merge
 
+********************************************************************************
+* CORRIGINDO TAMANHO DO MERCADO POTENCIAL
+********************************************************************************
+* O consumidor roca de carro a cada 5 anos
+generate mercado_potencial = mkt_pop_ * 0.2
+
+
 *-------------------------------------------------------------------------------
 * CONSTRUINDO MERCADO POTECIAL E CALCULANDO A PARTICIPAÇÃO NOS MERCADOS
 *-------------------------------------------------------------------------------
 * Construindo variável de share do bem j e do bem externo
 bysort ano subregiao cidadeprincipal: egen vendas_total = sum(vendas_ano)
-generate share_geral = vendas_ano / mkt_pop_
+generate share_geral = vendas_ano / mercado_potencial
 
 bysort ano subregiao cidadeprincipal: egen share_insidegood = total(share_geral)
 generate share_outsidegood = 1 - share_insidegood
@@ -523,7 +575,7 @@ sg1: Share do ninho ano combustivel
 sg2: Share do subninho ano combustivel segmento
 */
 
-generate s_jt = vendas_ano / mkt_pop_
+generate s_jt = vendas_ano / mercado_potencial
 bysort ano subregiao cidadeprincipal: egen outshr = sum(s_jt)
 replace outshr = 1 - outshr
 generate lnsj0 = ln(s_jt / outshr)
@@ -559,9 +611,9 @@ egen ano_cidade = group(ano subregiao cidadeprincipal), label
 *-------------------------------------------------------------------------------
 * INSTRUMENTOS BLP (Berry, Levinsohn and Pakes (1995))
 *-------------------------------------------------------------------------------
-sort ano_cidade marca
+sort ano_cidade marca_e
 foreach variable of local instr {
-    bysort ano_cidade marca: egen ownsum = total(`variable')
+    bysort ano_cidade marca_e: egen ownsum = total(`variable')
     * Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
     qui generate BLP2_`variable' = ownsum - `variable'
     bysort ano_cidade: egen totsum = total(`variable')
@@ -574,9 +626,9 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 * INSTRUMENTOS BST (Berry, S. T. (1994))
 *-------------------------------------------------------------------------------
-sort ano_cidade marca carroceria
+sort ano_cidade marca_e carroceria
 foreach variable of local instr {
-    bysort ano_cidade marca segmento: egen ownsum = total(`variable') 
+    bysort ano_cidade marca_e segmento: egen ownsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
@@ -599,12 +651,12 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 /* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como 
 proxy da substitubilidade dos produtos. */
-bysort ano_cidade marca segmento: egen BST_1 = count(prec) 
+bysort ano_cidade marca_e segmento: egen BST_1 = count(preco) 
 //Troquei carroceria por segmento
 
 /* Número de modelos em um dado grupo do mercado como proxy da substitubilidade
  dos produtos. */
-bysort ano_cidade marca: egen BST_1_1 = count(prec)
+bysort ano_cidade marca_e: egen BST_1_1 = count(preco)
 
 * Número de empresas pertencentes num mesmo grupo como proxy do grau de concorrência.
 *-------------------------------------------------------------------------------
