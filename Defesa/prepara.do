@@ -586,8 +586,8 @@ replace outshr = 1 - outshr
 generate lnsj0 = ln(s_jt / outshr)
 
 * Share dos Ninhos
-egen sg1 = sum(s_jt), by(combustivel ano)
-egen sg2 = sum(s_jt), by(segmento combustivel ano)
+egen sg1 = sum(s_jt), by(segmento ano subregiao cidadeprincipal)
+egen sg2 = sum(s_jt), by(segmento combustivel ano subregiao cidadeprincipal)
 
 * Algumas relações
 generate sg2g1   = sg2 / sg1
