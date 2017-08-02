@@ -296,6 +296,13 @@ generate potencia_especifica = potencia / peso_bruto
 local instr `instr' potencia potencia_ln potencia_especifica
 
 *-------------------------------------------------------------------------------
+* TORQUE
+*-------------------------------------------------------------------------------
+rename pote_t torque
+
+local instr `instr' torque
+
+*-------------------------------------------------------------------------------
 * VELOCIADADE MÁXIMA
 *-------------------------------------------------------------------------------
 generate veloc_max_ln = ln(dese_v)
@@ -338,6 +345,8 @@ local outras `outras' brasil mercosul acordo importado
 rename moto_cc cilindradas
 
 local outras `outras' cilindradas litros
+
+local instr `instr' cilindradas litros
 
 *-------------------------------------------------------------------------------
 * CILINDRADAS-ACORDO
@@ -571,30 +580,30 @@ generate dif_share = ln(share_geral) - ln(share_outsidegood)
 ********************************************************************************
 * GREGOS
 ********************************************************************************
-/*
-s_jt:   share de cada veículo no ano
-outshr: share que não comprou
-lnsj0:  ln do share normalizado
+* /*
+* s_jt:   share de cada veículo no ano
+* outshr: share que não comprou
+* lnsj0:  ln do share normalizado
 
-sg1: Share do ninho ano combustivel
-sg2: Share do subninho ano combustivel segmento
-*/
+* sg1: Share do ninho ano combustivel
+* sg2: Share do subninho ano combustivel segmento
+* */
 
-generate s_jt = vendas_ano / mercado_potencial
-bysort ano subregiao cidadeprincipal: egen outshr = sum(s_jt)
-replace outshr = 1 - outshr
-generate lnsj0 = ln(s_jt / outshr)
+* generate s_jt = vendas_ano / mercado_potencial
+* bysort ano subregiao cidadeprincipal: egen outshr = sum(s_jt)
+* replace outshr = 1 - outshr
+* generate lnsj0 = ln(s_jt / outshr)
 
-* Share dos Ninhos
-egen sg1 = sum(s_jt), by(segmento ano subregiao cidadeprincipal)
-egen sg2 = sum(s_jt), by(segmento combustivel ano subregiao cidadeprincipal)
+* * Share dos Ninhos
+* egen sg1 = sum(s_jt), by(segmento ano subregiao cidadeprincipal)
+* egen sg2 = sum(s_jt), by(segmento combustivel ano subregiao cidadeprincipal)
 
-* Algumas relações
-generate sg2g1   = sg2 / sg1
-generate lnsg2g1 = ln(sg2g1)
-generate sjg2    = s_jt / sg2
-generate lnsjg2  = ln(s_jt/sg2)
-generate sjg1    = s_jt / sg1 //Mudei o nome de sjgg para sjg1
+* * Algumas relações
+* generate sg2g1   = sg2 / sg1
+* generate lnsg2g1 = ln(sg2g1)
+* generate sjg2    = s_jt / sg2
+* generate lnsjg2  = ln(s_jt/sg2)
+* generate sjg1    = s_jt / sg1 //Mudei o nome de sjgg para sjg1
 
 
 * ______________________________________________________________________________
@@ -638,14 +647,14 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 sort ano_local marca_e carroceria
 foreach variable of local instr {
-    bysort ano_local marca_e segmento: egen ownsum = total(`variable') 
+    bysort ano_local marca_e segmento combustivel_e: egen ownsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
     qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_local segmento: egen totsum = total(`variable') 
+    bysort ano_local segmento combustivel_e: egen totsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
