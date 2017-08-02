@@ -85,6 +85,7 @@ local outras `outras' sales_*
 *-------------------------------------------------------------------------------
 * PREÇO
 *-------------------------------------------------------------------------------
+rename prec preco
 * Removendo carros sem preço
 drop if preco == .
 * Preços estão multiplicados por 100, dividindo-os:
@@ -408,6 +409,11 @@ local outras `outras' marca marca_e
 local outras `outras' modelo
 
 *-------------------------------------------------------------------------------
+* VERSÃO
+*-------------------------------------------------------------------------------
+local outras `outras' versao
+
+*-------------------------------------------------------------------------------
 * PORTAS
 *-------------------------------------------------------------------------------
 local outras `outras' portas
@@ -418,10 +424,9 @@ local outras `outras' portas
 encode combustivel, generate(combustivel_e)
 
 * flex
-generate flex = strmatch(versao,"*FLEX*")
-encode   flex, generate(flex_e)  
+generate flex = strmatch(versao,"*FLEX*")  
 
-local outras `outras' combustivel combustivel_e flex flex_e
+local outras `outras' combustivel combustivel_e flex
 
 *-------------------------------------------------------------------------------
 * EMISSAO CO2 (g/km)
@@ -434,11 +439,11 @@ local outras `outras' CO2
 * CATEGORIA IMPOSTOS
 *-------------------------------------------------------------------------------
 generate cat_ipi = 1 if litros <= 1.0 & flex == 0
-replace  cat_ipi = 2 if litros <= 1.0 & flex == 1) 
-replace  cat_ipi = 3 if litros >  1.0 & litros <= 2.0 & combustivel == "gasolina")
-replace  cat_ipi = 4 if litros >  1.0 & litros <= 2.0 & combustivel == "álcool")
-replace  cat_ipi = 5 if litros >  2.0 & combustivel == "gasolina")
-replace  cat_ipi = 6 if litros >  2.0 & combustivel == "álcool")
+replace  cat_ipi = 2 if litros <= 1.0 & flex == 1
+replace  cat_ipi = 3 if litros >  1.0 & litros <= 2.0 & combustivel == "gasolina"
+replace  cat_ipi = 4 if litros >  1.0 & litros <= 2.0 & combustivel == "álcool"
+replace  cat_ipi = 5 if litros >  2.0 & combustivel == "gasolina"
+replace  cat_ipi = 6 if litros >  2.0 & combustivel == "álcool"
 
 local outras `outras' cat_ipi
 * ______________________________________________________________________________
@@ -459,7 +464,7 @@ keep `instr' `outras'
 *-------------------------------------------------------------------------------
 * Excluindo (Verificar com mais cuidado)
 duplicates drop ///
-	marca modelo ano combustivel litros carroceria transmiss portas ///
+	marca modelo versao ano combustivel litros carroceria transmiss portas ///
 	subregiao cidadeprincipal, ///
 	force
 	
@@ -546,7 +551,7 @@ drop _merge
 ********************************************************************************
 * CORRIGINDO TAMANHO DO MERCADO POTENCIAL
 ********************************************************************************
-* O consumidor roca de carro a cada 5 anos
+* O consumidor troca de carro a cada 5 anos
 generate mercado_potencial = mkt_pop_ * 0.2
 
 
@@ -600,7 +605,12 @@ generate sjg1    = s_jt / sg1 //Mudei o nome de sjgg para sjg1
 *-------------------------------------------------------------------------------
 * CIDADE E ANO
 *-------------------------------------------------------------------------------
-egen ano_cidade = group(ano subregiao cidadeprincipal), label
+egen ano_local = group(ano subregiao cidadeprincipal), label
+
+*-------------------------------------------------------------------------------
+* ESTADO E ANO
+*-------------------------------------------------------------------------------
+* egen ano_local = group(ano subregiao), label
 
 
 * ______________________________________________________________________________
@@ -611,12 +621,12 @@ egen ano_cidade = group(ano subregiao cidadeprincipal), label
 *-------------------------------------------------------------------------------
 * INSTRUMENTOS BLP (Berry, Levinsohn and Pakes (1995))
 *-------------------------------------------------------------------------------
-sort ano_cidade marca_e
+sort ano_local marca_e
 foreach variable of local instr {
-    bysort ano_cidade marca_e: egen ownsum = total(`variable')
+    bysort ano_local marca_e: egen ownsum = total(`variable')
     * Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
     qui generate BLP2_`variable' = ownsum - `variable'
-    bysort ano_cidade: egen totsum = total(`variable')
+    bysort ano_local: egen totsum = total(`variable')
     * Instrumento BLP (3) para produtos produzidos por outras firmas fora do mercado.
     qui generate BLP3_`variable' = totsum - ownsum
     drop ownsum
@@ -626,16 +636,16 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 * INSTRUMENTOS BST (Berry, S. T. (1994))
 *-------------------------------------------------------------------------------
-sort ano_cidade marca_e carroceria
+sort ano_local marca_e carroceria
 foreach variable of local instr {
-    bysort ano_cidade marca_e segmento: egen ownsum = total(`variable') 
+    bysort ano_local marca_e segmento: egen ownsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
     qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_cidade segmento: egen totsum = total(`variable') 
+    bysort ano_local segmento: egen totsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
@@ -651,12 +661,12 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 /* Número de modelos de uma mesma montadora vendidos em um mesmo grupo como 
 proxy da substitubilidade dos produtos. */
-bysort ano_cidade marca_e segmento: egen BST_1 = count(preco) 
+bysort ano_local marca_e segmento: egen BST_1 = count(preco) 
 //Troquei carroceria por segmento
 
 /* Número de modelos em um dado grupo do mercado como proxy da substitubilidade
  dos produtos. */
-bysort ano_cidade marca_e: egen BST_1_1 = count(preco)
+bysort ano_local marca_e: egen BST_1_1 = count(preco)
 
 * Número de empresas pertencentes num mesmo grupo como proxy do grau de concorrência.
 *-------------------------------------------------------------------------------
