@@ -25,88 +25,35 @@ drop if ano == 2013
 
 * keep if cidadeprincipal == "RIO DE JANEIRO" 
 
-* keep if cidadeprincipal == "SAO PAULO" | ///
-* 	cidadeprincipal == "BELO HORIZONTE" | ///
-* 	cidadeprincipal == "RIO DE JANEIRO" | ///
-* 	cidadeprincipal == "BRASILIA" | ///
-* 	cidadeprincipal == "CURITIBA" | ///
-* 	cidadeprincipal == "SALVADOR"
-
-keep if ///
-    cidadeprincipal == "PORTO VELHO" | ///
-    cidadeprincipal == "MANAUS" | ///
-    cidadeprincipal == "RIO BRANCO" | ///
-    cidadeprincipal == "CAMPO GRANDE" | ///
-    cidadeprincipal == "MACAPA" | ///
-    cidadeprincipal == "BRASILIA" | ///
-    cidadeprincipal == "BOA VISTA" | ///
-    cidadeprincipal == "CUIABA" | ///
-    cidadeprincipal == "PALMAS" | ///
-    cidadeprincipal == "TERESINA" | ///
-    cidadeprincipal == "SAO PAULO" | ///
-    cidadeprincipal == "RIO DE JANEIRO" | ///
-    cidadeprincipal == "BELEM" | ///
-    cidadeprincipal == "SAO LUÍS" | ///
-    cidadeprincipal == "GOIANIA" | ///
-    cidadeprincipal == "SALVADOR" | ///
-    cidadeprincipal == "MACEIO" | ///
-    cidadeprincipal == "PORTO ALEGRE" | ///
-    cidadeprincipal == "CURITIBA" | ///
-    cidadeprincipal == "FLORIANOPOLIS" | ///
-    cidadeprincipal == "BELO HORIZONTE" | ///
-    cidadeprincipal == "FORTALEZA" | ///
-    cidadeprincipal == "RECIFE" | ///
-    cidadeprincipal == "JOAO PESSOA" | ///
-    cidadeprincipal == "ARACAJU" | ///
-    cidadeprincipal == "NATAL" | ///
-    cidadeprincipal == "VITORIA"
+* keep if ///
+*     cidadeprincipal == "PORTO VELHO" | ///
+*     cidadeprincipal == "MANAUS" | ///
+*     cidadeprincipal == "RIO BRANCO" | ///
+*     cidadeprincipal == "CAMPO GRANDE" | ///
+*     cidadeprincipal == "MACAPA" | ///
+*     cidadeprincipal == "BRASILIA" | ///
+*     cidadeprincipal == "BOA VISTA" | ///
+*     cidadeprincipal == "CUIABA" | ///
+*     cidadeprincipal == "PALMAS" | ///
+*     cidadeprincipal == "TERESINA" | ///
+*     cidadeprincipal == "SAO PAULO" | ///
+*     cidadeprincipal == "RIO DE JANEIRO" | ///
+*     cidadeprincipal == "BELEM" | ///
+*     cidadeprincipal == "SAO LUÍS" | ///
+*     cidadeprincipal == "GOIANIA" | ///
+*     cidadeprincipal == "SALVADOR" | ///
+*     cidadeprincipal == "MACEIO" | ///
+*     cidadeprincipal == "PORTO ALEGRE" | ///
+*     cidadeprincipal == "CURITIBA" | ///
+*     cidadeprincipal == "FLORIANOPOLIS" | ///
+*     cidadeprincipal == "BELO HORIZONTE" | ///
+*     cidadeprincipal == "FORTALEZA" | ///
+*     cidadeprincipal == "RECIFE" | ///
+*     cidadeprincipal == "JOAO PESSOA" | ///
+*     cidadeprincipal == "ARACAJU" | ///
+*     cidadeprincipal == "NATAL" | ///
+*     cidadeprincipal == "VITORIA"
 	
-* bysort marca: generate numero = _N
-* replace numero = numero/_N
-* gen popular = 0
-* replace popular = 1 if numero > 0.05
-* drop if popular != 0
-
-* keep if marca == "CHEVROLET" | ///
-*         marca == "CITROEN" | ///
-*         marca == "FORD" | ///
-*         marca == "FIAT" | ///
-*         marca == "PEUGEOT" | ///
-*         marca == "RENAULT" | ///
-*         marca == "VOLKSWAGEN"
-
-* generate popular = 0
-* replace popular = 1 if marca == "CHEVROLET" | ///
-*         marca == "CITROEN" | ///
-*         marca == "FORD" | ///
-*         marca == "FIAT" | ///
-*         marca == "PEUGEOT" | ///
-*         marca == "RENAULT" | ///
-*         marca == "VOLKSWAGEN"
-
-* Usando CO2 que faz sentido
-* drop if CO2 == .
-
-* Cortando regiões nada a ver
-* drop if cidadeprincipal=="AAAAA"
-* gen outros=strmatch(cidadeprincipal,"OTHERS*")
-* drop if outros==1
-* drop if ano==2013
-
-* Cortando marca de milionário
-* drop if marca=="FERRARI"
-* drop if marca=="ASTON MARTIN"
-* drop if marca=="BENTLEY"
-* drop if marca=="JAGUAR"
-* drop if marca=="LAMBORGHINI"
-* drop if marca=="LEXUS"
-* drop if marca=="MASERATI"
-* drop if marca=="ROLLS-ROYCE"
-
-* Preços pequenos
-* drop if preco > 100000
-* replace popular = 0
-* replace popular = 1 if preco < 100000
 
 *-------------------------------------------------------------------------------
 * CONTAGEM DAS FIRMAS
@@ -117,17 +64,6 @@ sort ano_local segmento marca_e
 bysort ano_local segmento marca_e: egen temp = count(ano_local)
 replace contagem_marcas = contagem_marcas - temp
 drop temp
-
-
-
-* ______________________________________________________________________________
-*
-* 							   INSTALANDO RCL
-* ______________________________________________________________________________
-
-* ssc install ivreg2
-* ssc install ranktest
-* ssc install rcl, all replace
 
 
 * ______________________________________________________________________________
@@ -172,36 +108,6 @@ global X ///
 	ano_dummy* ///
     potencia_ln
 	
-global Xt ///
-	ano_dummy* ///
-	transmissao ///
-    tracao ///
-    pilotoauto ///
-    arcondicionado ///
-    rodaleve ///
-    SOM ///
-    DVD ///
-    vidros ///
-    computer ///
-    direcao ///
-    travcentral ///
-    alarme ///
-    airbag ///
-    ABS1 EBD1 ///
-    acabamento_luxo ///
-    garantia ///
-    espaco_interno_ln ///
-    dist_eixos ///
-    consumo ///
-    peso_bruto_ln ///
-    carga_paga_max ///
-    potencia_especifica ///
-    veloc_max ///
-    aceleracao ///
-    importado ///
-    cilindradas ///
-	flex ///
-	combustivel_e
 	
 global IV ///
     BLP*transmissao ///
@@ -239,74 +145,42 @@ global IV ///
     * BLP5_2_potencia_ln BLP2_lndiex_l BLP3_lndiex_l BLP5_1lndiex_l BLP5_2lndiex_l  ///
     * BLP2_carga_ln BLP3_carga_ln BLP5_1_carga_ln BLP5_2_carga_ln BST_1 BST_1_1
 
+
+*-------------------------------------------------------------------------------
+* VARIÁVEIS
+*-------------------------------------------------------------------------------
+* global X ///
+*     ano_dummy* ///
+*     acordo ///
+*     potencia ///
+*     aceleracao ///
+*     veloc_max ///
+*     torque ///
+*     dist_eixos ///
+*     transmissao ///
+*     cilindradas
+
+* global IV ///
+*     contagem_marcas ///
+*     BLP5_2_potencia ///
+*     BLP5_2_aceleracao ///
+*     BLP5_2_veloc_max ///
+*     BLP5_2_torque ///
+*     BLP5_2_dist_eixos ///
+*     BLP5_2_cilindradas
+
 *-------------------------------------------------------------------------------
 * REGREDINDO PREÇO E IV
 *-------------------------------------------------------------------------------
 *stepwise, pr(0.2): regress preco $IV
 *lars preco $IV
 *regress preco_ln $IV
-
-
-*-------------------------------------------------------------------------------
-* REGRESSÃO
-*-------------------------------------------------------------------------------
-* msimulations com a opção onlymc calcula apenas o custo marginal e markup sem simular.
-rcl share_geral ///
-    $X ///
-    (preco_ln = $IV), ///
-    market(ano_local) ///
-	msize(mercado_potencial) ///
-    /*robust*/ ///
-    nests(segmento) ///
-    tsls ///
-    /* msimulation(marca_e) ///
-    onlymc */ ///
-    elasticities(marca_e)
-
-
-*-------------------------------------------------------------------------------
-* PARÂMETROS, MARKUP, E CUSTO MARGINAL
-*-------------------------------------------------------------------------------
-scalar alpha   = -_b[preco]
-scalar sigma_1 = _b[__sigma_g]
-scalar sigma_2 = _b[__sigma_hg]
-
-matrix theta = e(b)
-
-generate xb0 = __xb0
-generate ksi = __ksi
-generate lnss0 = __lnss0
-generate delta = __delta
-generate shat = __shat
 	
 	
 * ______________________________________________________________________________
 *
 *                                       IVREG 
 * ______________________________________________________________________________
-
-*-------------------------------------------------------------------------------
-* VARIÁVEIS
-*-------------------------------------------------------------------------------
-global X ///
-    ano_dummy* ///
-    acordo ///
-    potencia ///
-    aceleracao ///
-    veloc_max ///
-    torque ///
-    dist_eixos ///
-    transmissao ///
-	cilindradas
-
-global IV ///
-	contagem_marcas ///
-    BLP5_2_potencia ///
-    BLP5_2_aceleracao ///
-    BLP5_2_veloc_max ///
-    BLP5_2_torque ///
-    BLP5_2_dist_eixos ///
-	BLP5_2_cilindradas
 
 *-------------------------------------------------------------------------------
 * NINHO
