@@ -27,14 +27,14 @@ drop if outros==1
 * drop if ano==2013
 
 * Cortando marca de milionário
-* drop if marca=="FERRARI"
-* drop if marca=="ASTON MARTIN"
-* drop if marca=="BENTLEY"
-* drop if marca=="JAGUAR"
-* drop if marca=="LAMBORGHINI"
-* drop if marca=="LEXUS"
-* drop if marca=="MASERATI"
-* drop if marca=="ROLLS-ROYCE"
+drop if marca=="FERRARI"
+drop if marca=="ASTON MARTIN"
+drop if marca=="BENTLEY"
+drop if marca=="JAGUAR"
+drop if marca=="LAMBORGHINI"
+drop if marca=="LEXUS"
+drop if marca=="MASERATI"
+drop if marca=="ROLLS-ROYCE"
 
 
 * ______________________________________________________________________________
@@ -374,6 +374,8 @@ local outras `outras' cilindrada_acordo cilindrada_dummy*
 *-------------------------------------------------------------------------------
 replace jato = trim(jato)
 
+encode jato, generate(jato_e)
+
 generate segmento = 1 if jato=="AS Carro Grande"
 replace  segmento = 2 if jato=="AS Carro Luxo"
 replace  segmento = 3 if jato=="AS Carro Médio+" ///
@@ -398,7 +400,7 @@ label define TIPO 1 "CARRO GRANDE" ///
 
 label values segmento TIPO
 
-local outras `outras' segmento jato
+local outras `outras' segmento jato jato_e
 
 *-------------------------------------------------------------------------------
 * CARROCERIA
