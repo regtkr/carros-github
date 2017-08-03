@@ -71,8 +71,6 @@ drop temp
 * 					 ANINHANDO POR COMBUSTIVEL E SEGMENTO
 * ______________________________________________________________________________
 
-generate Origem = acordo
-
 *-------------------------------------------------------------------------------
 * DEFININDO VARIÁVEIS
 *-------------------------------------------------------------------------------
@@ -186,7 +184,7 @@ global IV ///
 * NINHO
 *-------------------------------------------------------------------------------
 global ninhos ///
-    segmento combustivel_e
+    segmento
 
 *-------------------------------------------------------------------------------
 * ANINHAMENTO
@@ -205,17 +203,19 @@ bysort ano subregiao cidadeprincipal: egen outshr = sum(s_jt)
 replace outshr = 1 - outshr
 generate lnsj0 = ln(s_jt / outshr)
 
-Share dos Ninhos
+* Share dos Ninhos
 * local i : word count $ninhos
 local i = 0
 local ninho
 foreach variavel of global ninhos {
     local i = `i' + 1
     local ninho `ninho' `variavel'
-    egen sg`i' = sum(s_jt), by(`ninho' ano subregiao cidadeprincipal)
+    egen sg`i' = sum(s_jt), by(`ninho' ano_local)
 }
 
-if (word count $ninhos) == 1 {
+local t_ninho : word count $ninhos
+if `t_ninho' == 1 {
+	* disp `t_ninho'
     generate sg2 = sg1
 }
 
@@ -246,7 +246,8 @@ scalar alpha   = -_b[preco]
 scalar sigma_1 = _b[lnsjg2]
 scalar sigma_2 = _b[lnsg2g1]
 
-if (word count $ninhos) == 1 {
+local t_ninho : word count $ninhos
+if `t_ninho' == 1 {
     scalar sigma_2 = sigma_1
 }
 
@@ -270,7 +271,7 @@ generate ownelas = - alpha * [1 / (1 - sigma_1) ///
     - (sigma_2 / (1 - sigma_2)) * sjg1 ///
     - s_jt]
 summarize ownelas, d
-tabulate marca_e, summarize(ownelas)
+* tabulate marca_e, summarize(ownelas)
 tabulate marca_e [aweight=vendas_ano], summarize(ownelas)
 
 generate cross_subgroup = alpha * [(1 / (1 - sigma_1) ///
