@@ -272,10 +272,10 @@ local instr `instr' consumo consumo_ln
 *-------------------------------------------------------------------------------
 * PESO
 *-------------------------------------------------------------------------------
-generate peso_carga = irecode(peso_b, 1500, 2000, 2500, 3000, 4000)
+egen preco_cat = cut(preco), group(5) label
 
 generate carga_paga_max = peso_b - peso_m
-generate carga          = irecode(carga_paga_max, 140, 300, 400, 500, 600, 900)
+egen carga_paga_max_cat = cut(carga_paga_max), group(6) label
 generate carga_ln       = ln(carga_paga_max)
 
 generate peso_bruto_ln = ln(peso_b)
@@ -288,7 +288,7 @@ local instr `instr' carga_paga_max carga_ln peso_bruto peso_bruto_ln carga_carro
 * POTÊCIA DO MOTOR
 *-------------------------------------------------------------------------------
 *qui 
-generate potencia_categorica = irecode(pote_c, 100, 200, 300, 400, 500, 750)
+egen potencia_cat = cut(pote_c), group(6) label
 generate potencia_ln = ln(pote_c)
 rename pote_c potencia
 generate potencia_especifica = potencia / peso_bruto
@@ -649,14 +649,14 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 sort ano_local marca_e carroceria
 foreach variable of local instr {
-    bysort ano_local marca_e segmento combustivel_e: egen ownsum = total(`variable') 
+    bysort ano_local marca_e segmento: egen ownsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
     qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_local segmento combustivel_e: egen totsum = total(`variable') 
+    bysort ano_local segmento: egen totsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
