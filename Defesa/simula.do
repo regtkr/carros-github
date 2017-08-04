@@ -1,6 +1,6 @@
 /* SIMULA.DO:
 	Simula um imposto FEEBATE apartir da estimativa de ESTIMA.DO
-	PP: Pivot da emiss√£o de CO2
+	PP: Pivot da emiss„o de CO2
 */
 
 * ______________________________________________________________________________
@@ -35,8 +35,8 @@ summarize CO2_media
 *-------------------------------------------------------------------------------
 * TAXANDO
 *-------------------------------------------------------------------------------
-generate simco2tax = (CO2 - PP) * co2tax
-summarize simco2tax,d
+generate simco2tax = (CO2 - PP) * tax
+summarize simco2tax, d
 
 * ______________________________________________________________________________
 *
@@ -50,18 +50,28 @@ DELTA = X' * BETA + QUI - ALPHA * P
 */
 
 *-------------------------------------------------------------------------------
-* ESTIMA√á√ÉO
+* ESTIMA«√O
 *-------------------------------------------------------------------------------
-ivreg2 lnsj0  eng_cc  co2thou  hpthou lengXwid   dum_manual dum_climate    yr* cn*  (price lnsjg2 lnsg2g1= countotherfirms co2otherfirms frameotherfirms engotherfirms hpotherfirms)
-scalar sigma1 = _b[lnsjg2]
-scalar sigma2 = _b[lnsg2g1]
-scalar alpha = - _b[price]
-drop markups mc
-generate markups = alpha * [1 / (1 - sigma1) - (1 / (1 - sigma1) - 1 / (1 - sigma2)) * sjg2m - (sigma2 / (1-sigma2)) * sjggm - sm] 
-replace markups = 1 / markups
-generate mc = (price - markups) / (1+VATrate)
+********************************************************************************
+* * J· feito no contrai.do com o RCL, ver com prof qual melhor
+********************************************************************************
+ivreg2 lnsj0 $X (prec lnsjg2 lnsg2g1 = $IV)
 
-generate markup_modelo = markups * sales // if year==2008
+scalar sigma_1 = _b[lnsjg2]
+scalar sigma_2 = _b[lnsg2g1]
+scalar alpha = - _b[prec]
+
+* drop markup mc
+generate markups = alpha * ///
+    [1 / (1 - sigma_1) ///
+    - (1 / (1 - sigma_1) ///
+    - 1 / (1 - sigma_2)) * sjg2m ///
+    - (sigma_2 / (1-sigma_2)) * sjg1m 
+    - sm] 
+replace markups = 1 / markups
+generate mc = (prec - markups) / (1+VATrate)
+
+generate markup_modelo = markups * vendas_ano // if year==2008
 egen markup_total = sum(markup_modelo) // if year==2008
 generate markup_medio = markup_total / venda_total // if year==2008
 summarize markup_medio
@@ -69,8 +79,8 @@ summarize markup_medio
 *-------------------------------------------------------------------------------
 * NOVO DELTA
 *-------------------------------------------------------------------------------
-* J√° feito no contrai.do com o RCL
-generate preco_novo = optprice
+* J· feito no contrai.do com o RCL
+generate preco_novo = mc + markups
 generate delta_sim = delta - alpha * prec + alpha * preco_novo
 
 
@@ -96,31 +106,31 @@ replace outshr2 = outshr2 + 1
 replace outshr2 = 1 / outshr2
 generate prshares = ///
 	Dj * (Dh^((sigma_2 - sigma_1) / (1 - sigma_2))) * outshr2 * (Dg ^ (-sigma_2))
-generate vendas_sim = prshares * M
+generate vendas_sim = prshares * mercado_potencial
 
 
 *-------------------------------------------------------------------------------
 * TABELAS
 *-------------------------------------------------------------------------------
-table segmento combustivel, contents(median price median sales)
+table segmento combustivel, contents(median prec median vendas_ano)
 table segmento combustivel, contents(median preco_novo median vendas_sim)
-table combustivel segmento, contents(median markups)
+table combustivel segmento, contents(median markup)
 
 summarize CO2 /* if ano == 2008 */, d
 
 generate CO2_classe = recode(CO2, 130, 160, 180, 200, 442)
 
-table CO2_classe class ///
-	/* if ano == 2008 & */ combustivel == 0, ///
-	c(median price median preco_novo median sales median vendas_sim count ano)
+table CO2_classe segmento ///
+	if /* ano == 2008 & */ combustivel == "gasolina", ///
+	contents(median prec median preco_novo median vendas_ano median vendas_sim count ano)
 
-table CO2_classe class ///
-	/* if ano == 2008 & */ combustivel == 1, ///
-	contents(median price median preco_novo median sales median vendas_sim count ano)
+table CO2_classe segmento ///
+	if /* ano == 2008 & */ combustivel == "·lcool", ///
+	contents(median prec median preco_novo median vendas_ano median vendas_sim count ano)
 
-table CO2_classe class combustivel ///
-	/* if ano == 2008 */, ///
-	contents(median price median preco_novo sum sales sum vendas_sim count ano)
+table CO2_classe segmento combustivel ///
+	if 1/* ano == 2008 */, ///
+	contents(median prec median preco_novo sum vendas_ano sum vendas_sim count ano)
 
 
 generate CO2_modelo_sim = CO2 * vendas_sim
@@ -193,6 +203,8 @@ summarize actrev
 ********************************************************************************
 * VATrate?
 ********************************************************************************
+generate VATrate = 0
+
 generate markups_star = preco_novo - (1 + VATrate) * mc - simco2tax
 
 generate markup_modelo_sim = markups_star * vendas_sim /* if ano == 2008 */
@@ -223,7 +235,7 @@ generate W_act = (ln(1 / outshr)) / (-alpha)
 generate W_sim = (ln(1 / outshr2)) / (-alpha)
 table ano, contents(mean W_sim mean W_act)
 
-generate W_act_all = W_act * sales
+generate W_act_all = W_act * vendas_ano
 egen W_act_allsum = sum(W_act_all) /* if ano == 2008 */
 generate W_sim_all = W_sim * vendas_sim
 egen W_sim_allsum = sum(W_sim_all) /* if ano == 2008 */
@@ -246,7 +258,7 @@ generate TWdiff = bem_estar_total_sim - bem_estar_total
 generate TWperc = (TWdiff / bem_estar_total) * 100
 
 table CO2_classe combustivel /* if ano == 2008 */ , ///
-	contents(median price median preco_novo median sales median vendas_sim count ano)
+	contents(median prec median preco_novo median vendas_ano median vendas_sim count ano)
 
 
 * ______________________________________________________________________________
