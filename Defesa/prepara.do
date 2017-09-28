@@ -21,20 +21,34 @@ use "BIG_File_with_fuel.dta", clear
 * ______________________________________________________________________________
 
 * Cortando regiões nada a ver
-drop if cidadeprincipal=="AAAAA"
-gen outros=strmatch(cidadeprincipal,"OTHERS*")
-drop if outros==1
-* drop if ano==2013
+drop if cidadeprincipal == "AAAAA"
+
+generate outros = strmatch(cidadeprincipal,"OTHERS*")
+drop if outros == 1
+drop outros
+
+drop if ano == 2013
+
+* Variáveis vazias
+foreach var of varlist _all {
+    capture assert mi(`var')
+    if !_rc {
+       drop `var'
+    }
+}
+
+* Antigo merge da base
+drop _merge
 
 * Cortando marca de milionário
-drop if marca=="FERRARI"
-drop if marca=="ASTON MARTIN"
-drop if marca=="BENTLEY"
-drop if marca=="JAGUAR"
-drop if marca=="LAMBORGHINI"
-drop if marca=="LEXUS"
-drop if marca=="MASERATI"
-drop if marca=="ROLLS-ROYCE"
+drop if marca == "FERRARI"
+drop if marca == "ASTON MARTIN"
+drop if marca == "BENTLEY"
+drop if marca == "JAGUAR"
+drop if marca == "LAMBORGHINI"
+drop if marca == "LEXUS"
+drop if marca == "MASERATI"
+drop if marca == "ROLLS-ROYCE"
 
 
 * ______________________________________________________________________________
@@ -104,18 +118,31 @@ local outras `outras' preco preco_ln
 * TRANSMISSÃO
 *-------------------------------------------------------------------------------
 generate transmissao = .
-replace  transmissao = 1 if transmiss == "automática"
-replace  transmissao = 0 if transmiss == "manual"
+replace  transmissao = 1 if trans == "automática"
+replace  transmissao = 0 if trans == "manual"
 
 local instr `instr' transmissao 
 
 *-------------------------------------------------------------------------------
 * TRAÇÃO
 *-------------------------------------------------------------------------------
-generate tracao = 0
-replace  tracao = 1 if trca == "4x4"
+encode trca, generate(tracao)
+* generate tracao = 0
+* replace  tracao = 1 if trca == "4x4"
+drop trca
 
 local instr `instr' tracao
+
+*-------------------------------------------------------------------------------
+* COMPRESSOR
+*-------------------------------------------------------------------------------
+replace comp = "nenhum"
+encode comp, generate(compressor)
+* generate tracao = 0
+* replace  tracao = 1 if comp == "4x4"
+drop comp
+
+local instr `instr' compressor
 
 *-------------------------------------------------------------------------------
 * PILOTO AUTOMÁTICO
@@ -178,10 +205,19 @@ local instr `instr' computer
 * DIREÇÃO CHIC
 *-------------------------------------------------------------------------------
 generate direcao = 0
-replace  direcao = 1 ///
-	if dira_t == "hidráulica" | dira_t=="elérica" | dira_t=="eletro-hidrául."
+replace  direcao = 1 if dira == "std"
+	* if dira_t == "hidráulica" | dira_t=="elérica" | dira_t=="eletro-hidrául."
 
-local instr `instr' direcao
+generate hidraulica = 0
+replace  hidraulica = 1 if dira_t == "hidráulica"
+
+generate eletrica = 0
+replace  eletrica = 1 if dira_t=="elérica"
+
+generate elethidr = 0
+replace  elethidr = 1 if dira_t=="eletro-hidrául."
+
+local instr `instr' direcao hidraulica eletrica elethidr
 
 *-------------------------------------------------------------------------------
 * TRAVAMENTO CENTRAL
@@ -203,10 +239,12 @@ local instr `instr' alarme
 * AIRBAG
 *-------------------------------------------------------------------------------
 generate airbag = 0
-replace airbag = 1 if aird == "std"
-replace airbag = 0 if aird != "std" & aird!=""
+replace  airbag = 1 if aird == "std"
 
-local instr `instr' airbag
+generate air_lat = 0
+replace  air_lat = 1 if airl == "std"
+
+local instr `instr' airbag air_lat
 
 *-------------------------------------------------------------------------------
 * FREIOS
@@ -252,6 +290,10 @@ generate espaco_interno    = diex_l * diex_e
 generate espaco_interno_ln = ln(espaco_interno)
 
 * Dimenções
+generate dist_eixos  = diex_e
+generate largura     = diex_l
+generate comprimento = diex_c
+
 generate dist_eixos_ln  = ln(diex_e)
 generate largura_ln     = ln(diex_l)
 generate comprimento_ln = ln(diex_c)
@@ -259,7 +301,8 @@ generate comprimento_ln = ln(diex_c)
 local instr `instr' area_frontal area_superior volume_externo ///
 	area_frontal_ln area_superior_ln volume_externo_ln ///
 	espaco_interno espaco_interno_ln ///
-    dist_eixos_ln largura_ln comprimento_ln
+  comprimento dist_eixos largura  ///   
+  dist_eixos_ln largura_ln comprimento_ln
 
 *-------------------------------------------------------------------------------
 * CONSUMO
@@ -272,7 +315,7 @@ local instr `instr' consumo consumo_ln
 *-------------------------------------------------------------------------------
 * PESO
 *-------------------------------------------------------------------------------
-egen preco_cat = cut(preco), group(5) label
+egen peso_cat = cut(peso_b), group(5) label
 
 generate carga_paga_max = peso_b - peso_m
 egen carga_paga_max_cat = cut(carga_paga_max), group(6) label
@@ -283,6 +326,7 @@ rename   peso_b peso_bruto
 rename   carg_v carga_carro
 
 local instr `instr' carga_paga_max carga_ln peso_bruto peso_bruto_ln carga_carro
+local outras `outras' peso_cat carga_paga_max_cat
 
 *-------------------------------------------------------------------------------
 * POTÊCIA DO MOTOR
@@ -294,11 +338,15 @@ rename pote_c potencia
 generate potencia_especifica = potencia / peso_bruto
 
 local instr `instr' potencia potencia_ln potencia_especifica
+local outras `outras' potencia_cat
 
 *-------------------------------------------------------------------------------
 * TORQUE
 *-------------------------------------------------------------------------------
 rename pote_t torque
+
+* Corrigindo o torque do BMW Series 3, 2 litros
+replace torque = 200 if torque == 2000
 
 local instr `instr' torque
 
@@ -405,6 +453,9 @@ local outras `outras' segmento jato jato_e
 *-------------------------------------------------------------------------------
 * CARROCERIA
 *-------------------------------------------------------------------------------
+drop carroceria
+rename carr carroceria
+
 local outras `outras' carroceria
 
 *-------------------------------------------------------------------------------
@@ -427,6 +478,14 @@ local outras `outras' versao
 *-------------------------------------------------------------------------------
 * PORTAS
 *-------------------------------------------------------------------------------
+drop portas
+
+rename port portas
+
+* Verificar se não existe van
+replace portas = 2 if portas == 3
+replace portas = 4 if portas == 5
+
 local outras `outras' portas
 
 *-------------------------------------------------------------------------------
@@ -444,7 +503,7 @@ local outras `outras' combustivel combustivel_e flex
 *-------------------------------------------------------------------------------
 rename emis_c CO2
 
-local outras `outras' CO2
+local instr `instr' CO2
 
 *-------------------------------------------------------------------------------
 * CATEGORIA IMPOSTOS
@@ -474,10 +533,10 @@ keep `instr' `outras'
 * DADOS DUPLICADOS
 *-------------------------------------------------------------------------------
 * Excluindo (Verificar com mais cuidado)
-duplicates drop ///
-	marca modelo versao ano combustivel litros carroceria transmiss portas ///
-	subregiao cidadeprincipal, ///
-	force
+* duplicates drop ///
+* 	marca modelo versao ano combustivel litros carroceria transmiss portas ///
+* 	subregiao cidadeprincipal, ///
+* 	force
 	
 *-------------------------------------------------------------------------------
 * TRANSFORMANDO EM PAINEL LONGO 
@@ -546,6 +605,35 @@ de cilindradas-combustível comforme acima */
 *     generate cc`i'__queda_2 = cilindrada_dummy`i' * queda_2
 * }
 
+* ______________________________________________________________________________
+*
+*               SALVANDO PARA GERAR AS ESTATISTICAS DESCRITIVAS 
+* ______________________________________________________________________________
+
+save base_descritiva.dta, replace
+
+* ______________________________________________________________________________
+*
+*               REMOVENDO 
+* ______________________________________________________________________________
+
+drop if marca=="FERRARI"
+drop if marca=="ASTON MARTIN"
+drop if marca=="BENTLEY"
+drop if marca=="JAGUAR"
+drop if marca=="LAMBORGHINI"
+drop if marca=="LEXUS"
+drop if marca=="MASERATI"
+drop if marca=="ROLLS-ROYCE"
+drop if jato_e == 1 ///
+      | jato_e == 2 ///
+      | jato_e == 5 ///
+      | jato_e == 8 ///
+      | jato_e == 9 ///
+      | jato_e == 10
+drop if ano == 2013
+drop if combustivel == "diesel"
+
 
 * ______________________________________________________________________________
 *
@@ -608,6 +696,8 @@ generate dif_share = ln(share_geral) - ln(share_outsidegood)
 * generate sjg1    = s_jt / sg1 //Mudei o nome de sjgg para sjg1
 
 
+* drop if mercado_potencial <= 50000
+
 * ______________________________________________________________________________
 *
 *                                   CRIANDO GRUPOS
@@ -629,6 +719,12 @@ egen ano_local = group(ano subregiao cidadeprincipal), label
 *                         CRIANDO VARIÁVEIS INSTRUMENTAIS
 * ______________________________________________________________________________
 
+foreach var of local instr{
+	sum `var', detail
+	keep if inrange(`var', `r(p1)', `r(p99)')
+}
+
+
 *-------------------------------------------------------------------------------
 * INSTRUMENTOS BLP (Berry, Levinsohn and Pakes (1995))
 *-------------------------------------------------------------------------------
@@ -636,10 +732,10 @@ sort ano_local marca_e
 foreach variable of local instr {
     bysort ano_local marca_e: egen ownsum = total(`variable')
     * Instrumento BLP (2) para outros produzidos pela mesma firma dentro do mercado.
-    qui generate BLP2_`variable' = ownsum - `variable'
+    qui generate BLP_1_`variable' = ownsum - `variable'
     bysort ano_local: egen totsum = total(`variable')
     * Instrumento BLP (3) para produtos produzidos por outras firmas fora do mercado.
-    qui generate BLP3_`variable' = totsum - ownsum
+    qui generate BLP_2_`variable' = totsum - ownsum
     drop ownsum
     drop totsum
 }
@@ -649,23 +745,118 @@ foreach variable of local instr {
 *-------------------------------------------------------------------------------
 sort ano_local marca_e carroceria
 foreach variable of local instr {
-    bysort ano_local marca_e segmento: egen ownsum = total(`variable') 
+    bysort ano_local marca_e carroceria: egen ownsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos pela mesma firma
 	localizados no mesmo segmento. */
-    qui generate BLP5_1_`variable' = ownsum - `variable'   
-    bysort ano_local segmento: egen totsum = total(`variable') 
+    qui generate BLP_s_1_`variable' = ownsum - `variable'   
+    bysort ano_local carroceria: egen totsum = total(`variable') 
     //Troquei carroceria por segmento
     /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
 	mercado no mesmo segmento.
     * Soma das características dos outros produtos produzidos por outras firmas
 	localizados no mesmo segmento. */ 
-    qui generate BLP5_2_`variable' = totsum - ownsum  
+    qui generate BLP_s_2_`variable' = totsum - ownsum  
     drop ownsum
     drop totsum
 }
+
+
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BST (Berry, S. T. (1994))
+*-------------------------------------------------------------------------------
+sort ano_local marca_e jato_e
+foreach variable of local instr {
+    bysort ano_local marca_e jato_e: egen ownsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma
+  localizados no mesmo segmento. */
+    qui generate BLP_j_1_`variable' = ownsum - `variable'   
+    bysort ano_local jato_e: egen totsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas
+  localizados no mesmo segmento. */ 
+    qui generate BLP_j_2_`variable' = totsum - ownsum  
+    drop ownsum
+    drop totsum
+}
+
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BST (Berry, S. T. (1994))
+*-------------------------------------------------------------------------------
+sort ano_local marca_e flex jato_e
+foreach variable of local instr {
+    bysort ano_local marca_e flex jato_e: egen ownsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma
+  localizados no mesmo segmento. */
+    qui generate BLP_fj_1_`variable' = ownsum - `variable'   
+    bysort ano_local flex jato_e: egen totsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas
+  localizados no mesmo segmento. */ 
+    qui generate BLP_fj_2_`variable' = totsum - ownsum  
+    drop ownsum
+    drop totsum
+}
+
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BST (Berry, S. T. (1994))
+*-------------------------------------------------------------------------------
+sort ano_local marca_e combustivel_e
+foreach variable of local instr {
+    bysort ano_local marca_e combustivel_e: egen ownsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma
+  localizados no mesmo segmento. */
+    qui generate BLP_c_1_`variable' = ownsum - `variable'   
+    bysort ano_local combustivel_e: egen totsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas
+  localizados no mesmo segmento. */ 
+    qui generate BLP_c_2_`variable' = totsum - ownsum  
+    drop ownsum
+    drop totsum
+}
+
+
+*-------------------------------------------------------------------------------
+* INSTRUMENTOS BST (Berry, S. T. (1994))
+*-------------------------------------------------------------------------------
+sort ano_local marca_e jato_e combustivel_e
+foreach variable of local instr {
+    bysort ano_local marca_e jato_e combustivel_e: egen ownsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.1) para outros produzidos pela mesma firma dentro do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos pela mesma firma
+  localizados no mesmo segmento. */
+    qui generate BLP_jc_1_`variable' = ownsum - `variable'   
+    bysort ano_local jato_e combustivel_e: egen totsum = total(`variable') 
+    //Troquei carroceria por segmento
+    /* Instrumento BST (5.2) para produtos produzidos por outras firmas fora do
+  mercado no mesmo segmento.
+    * Soma das características dos outros produtos produzidos por outras firmas
+  localizados no mesmo segmento. */ 
+    qui generate BLP_jc_2_`variable' = totsum - ownsum  
+    drop ownsum
+    drop totsum
+}
+
 
 *-------------------------------------------------------------------------------
 * PROXY DA SUBSTITUTIBILIDADE
@@ -690,4 +881,9 @@ bysort ano_local marca_e: egen BST_1_1 = count(preco)
 
 save base_limpa_instr.dta, replace
 * outsheet using base_limpa_instr.csv, comma replace
+
+
+
+keep preco_ln BLP_j_*
+save base_py.dta, replace
 
